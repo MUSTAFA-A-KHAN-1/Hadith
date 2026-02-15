@@ -124,7 +124,7 @@ Example: /search prayer
 • Sunan an-Nasa'i
 • Sunan Ibn Majah`
 
-	h.sendMessage(m.Sender, h.escapeMarkdown(helpText))
+	h.sendMessage(m.Sender, helpText)
 }
 
 // handleRandom handles /random command
@@ -170,7 +170,7 @@ func (h *Handler) handleSearch(m *telebot.Message) {
 	results := h.hadithService.SearchHadiths(args, 1, 5)
 
 	if len(results.Hadiths) == 0 {
-		h.sendMessage(m.Sender, fmt.Sprintf("No results found for: *%s*", h.escapeMarkdown(args)))
+		h.sendMessage(m.Sender, fmt.Sprintf("No results found for: *%s*", args))
 		return
 	}
 
@@ -195,7 +195,7 @@ func (h *Handler) handleSearch(m *telebot.Message) {
 	menu.InlineKeyboard = keyboard
 
 	resultText := fmt.Sprintf("🔍 *Search Results for:* %s\n\nFound *%d* results. Showing first 5:\n\n_Click on a hadith to view full details_",
-		h.escapeMarkdown(args), results.Total)
+		args, results.Total)
 
 	h.sendMessageWithKeyboard(m.Sender, resultText, menu)
 	h.log.LogResponse(int64(m.Sender.ID), "search", true)
@@ -317,7 +317,7 @@ Example: /search prayer
 • Use pagination buttons to see more results
 • Click on a book to view hadiths`
 
-	h.bot.Edit(c.Message, h.escapeMarkdown(helpText), &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
+	h.bot.Edit(c.Message, helpText, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
 }
 
 // handleCollectionsCallback handles collection navigation
@@ -594,7 +594,7 @@ func (h *Handler) sendSearchResults(user *telebot.User, query string, results mo
 	menu.InlineKeyboard = keyboard
 
 	resultText := fmt.Sprintf("🔍 *Search Results for:* %s\n\nPage %d/%d - Showing %d of %d results:",
-		h.escapeMarkdown(query), results.Page, results.TotalPages, len(results.Hadiths), results.Total)
+		query, results.Page, results.TotalPages, len(results.Hadiths), results.Total)
 
 	h.sendMessageWithKeyboard(user, resultText, menu)
 }
@@ -635,12 +635,12 @@ func (h *Handler) formatHadithDisplay(hadith *models.Hadith, collection *models.
 	sb.WriteString(grade)
 	sb.WriteString("\n")
 
-	return h.escapeMarkdown(sb.String())
+	return sb.String()
 }
 
 // sendMessage sends a text message
 func (h *Handler) sendMessage(user *telebot.User, text string) {
-	_, err := h.bot.Send(user, h.escapeMarkdown(text), &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
+	_, err := h.bot.Send(user, text, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
 	if err != nil {
 		h.log.LogError(err, "sendMessage")
 	}
@@ -648,7 +648,7 @@ func (h *Handler) sendMessage(user *telebot.User, text string) {
 
 // sendMessageWithKeyboard sends a text message with keyboard
 func (h *Handler) sendMessageWithKeyboard(user *telebot.User, text string, keyboard *telebot.ReplyMarkup) {
-	_, err := h.bot.Send(user, h.escapeMarkdown(text), &telebot.SendOptions{ParseMode: telebot.ModeMarkdown, ReplyMarkup: keyboard})
+	_, err := h.bot.Send(user, text, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown, ReplyMarkup: keyboard})
 	if err != nil {
 		h.log.LogError(err, "sendMessageWithKeyboard")
 	}
