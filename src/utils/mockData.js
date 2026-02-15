@@ -9,7 +9,7 @@ const transformedBukhari = hadithArray.map(h => ({
   grade: 'Sahih', // all Bukhari hadith are Sahih
   arabic: h.arabic,
   english: typeof h.english === 'string' ? h.english : h.english?.text || '',
-  bookNumber: h.bookId
+  bookNumber: h.chapterId // Use chapterId to identify the book/chapter
 }))
 
 export const mockCollections = [
@@ -240,13 +240,34 @@ export const getMockBooks = (collection) => {
 }
 
 export const getMockHadiths = (collection, bookNumber, page = 1, limit = 20) => {
-  const collectionHadiths = mockHadiths[collection] || mockHadiths.bukhari
-  const bookHadiths = collectionHadiths.slice(0, 10)
+  let collectionHadiths = mockHadiths[collection] || mockHadiths.bukhari
+  
+  // For Bukhari, filter by chapterId (which is the book/chapter number)
+  if (collection === 'bukhari') {
+    // Filter hadiths by the requested bookNumber (chapterId)
+    collectionHadiths = collectionHadiths.filter(h => h.bookNumber === parseInt(bookNumber))
+    
+    // If no hadiths found for this book, try with chapterId as fallback
+    if (collectionHadiths.length === 0) {
+      collectionHadiths = mockHadiths.bukhari.filter(h => h.chapterId === parseInt(bookNumber))
+    }
+  }
+  
+  // If still no filtered results, return all from collection
+  if (collectionHadiths.length === 0) {
+    collectionHadiths = mockHadiths[collection] || mockHadiths.bukhari
+  }
+  
+  // Apply pagination
+  const startIndex = (page - 1) * limit
+  const endIndex = startIndex + limit
+  const bookHadiths = collectionHadiths.slice(startIndex, endIndex)
+  
   return Promise.resolve({
     hadiths: bookHadiths,
-    total: bookHadiths.length,
+    total: collectionHadiths.length,
     page,
-    totalPages: 1
+    totalPages: Math.ceil(collectionHadiths.length / limit)
   })
 }
 
