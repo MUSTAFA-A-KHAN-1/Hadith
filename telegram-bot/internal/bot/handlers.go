@@ -167,7 +167,7 @@ func (h *Handler) handleSearch(m *telebot.Message) {
 
 	h.log.LogRequest(int64(m.ID), int64(m.Sender.ID), "/search "+args)
 
-	results := h.hadithService.SearchHadiths(args, 1, 5)
+	results := h.hadithService.SearchHadiths(args, 1, 10)
 
 	if len(results.Hadiths) == 0 {
 		h.sendMessage(m.Sender, fmt.Sprintf("No results found for: *%s*", args))
@@ -178,10 +178,18 @@ func (h *Handler) handleSearch(m *telebot.Message) {
 	menu := &telebot.ReplyMarkup{}
 	var keyboard [][]telebot.InlineButton
 
-	for i, hadith := range results.Hadiths {
-		data := fmt.Sprintf("hadith_search:%d:%d", 1, i)
+	// Search across all collections and track which collection each hadith belongs to
+	// Format: hadith_search:{collectionName}:{hadithNumber}
+	for _, hadith := range results.Hadiths {
+		// Find which collection this hadith belongs to
+		collectionName := h.findCollectionForHadith(hadith)
+		data := fmt.Sprintf("hadith_search:%s:%d", collectionName, hadith.HadithNumber)
+		grade := hadith.Grade
+		if grade == "" {
+			grade = "Sahih"
+		}
 		keyboard = append(keyboard, []telebot.InlineButton{
-			{Text: fmt.Sprintf("Hadith #%d", hadith.HadithNumber), Data: data},
+			{Text: fmt.Sprintf("🵿 Hadith #%d [%s]", hadith.HadithNumber, grade), Data: data},
 		})
 	}
 
@@ -516,9 +524,57 @@ func (h *Handler) handleHadithDetailCallback(c *telebot.Callback, parts []string
 
 // handleHadithSearchCallback handles hadith search detail display
 func (h *Handler) handleHadithSearchCallback(c *telebot.Callback, parts []string) {
-	// For now, show a simple message
-	// In production, you'd store the search results in a session/cache
-	h.sendMessage(c.Sender, "For full hadith details, please use /search with the keyword again.")
+	// Format: hadith_search:{collectionName}:{hadithNumber}
+	if len(parts) < 3 {
+		h.bot.Edit(c.Message, &telebot.Message{Text: "Invalid hadith selection."})
+		return
+	}
+
+	collectionName := parts[1]
+	hadithNumber, err := strconv.Atoi(parts[2])
+	if err != nil {
+		h.bot.Edit(c.Message, &telebot.Message{Text: "Invalid hadith selection."})
+		return
+	}
+
+	// Find the hadith - we need to search through books to find it
+	books := h.hadithService.GetBooks(collectionName)
+	var foundHadith *models.Hadith
+	var foundBook *models.Book
+
+	for _, book := range books {
+		// Get hadiths for this book
+		result := h.hadithService.GetHadiths(collectionName, book.BookNumber, 1, 100)
+		for i := range result.Hadiths {
+			if result.Hadiths[i].HadithNumber == hadithNumber {
+				foundHadith = &result.Hadiths[i]
+				foundBook = &book
+				break
+			}
+		}
+		if foundHadith != nil {
+			break
+		}
+	}
+
+	if foundHadith == nil {
+		h.bot.Edit(c.Message, &telebot.Message{Text: "Hadith not found."})
+		return
+	}
+
+	collection := h.hadithService.GetCollection(collectionName)
+	hadithText := h.formatHadithDisplay(foundHadith, collection, foundBook)
+
+	// Create menu for navigation
+	menu := &telebot.ReplyMarkup{}
+	menu.InlineKeyboard = [][]telebot.InlineButton{
+		{
+			{Text: "🎲 Random Hadith", Data: "random"},
+			{Text: "🔍 Search", Data: "search"},
+		},
+	}
+
+	h.bot.Edit(c.Message, hadithText, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown, ReplyMarkup: menu})
 }
 
 // handleRandomCallback handles random hadith from callback
@@ -699,4 +755,19 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// findCollectionForHadith finds which collection a hadith belongs to based on its chapterId
+func (h *Handler) findCollectionForHadith(hadith models.Hadith) string {
+	collections := h.hadithService.GetCollections()
+	for _, collection := range collections {
+		books := h.hadithService.GetBooks(collection.Name)
+		for _, book := range books {
+			if book.BookNumber == hadith.ChapterID {
+				return collection.Name
+			}
+		}
+	}
+	// Default to bukhari if not found
+	return "bukhari"
 }
