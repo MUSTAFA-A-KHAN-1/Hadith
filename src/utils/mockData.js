@@ -153,21 +153,44 @@ export const mockHadiths = {
 export const getMockCollections = () => Promise.resolve(mockCollections)
 
 export const getMockBooks = (collection) => {
-  const books = mockBooks[collection] || mockBooks.bukhari
+  // Return empty array if collection doesn't exist in mockBooks
+  // Do NOT fall back to another collection's data
+  const books = mockBooks[collection]
+  if (!books) {
+    console.warn(`No books found for collection: ${collection}`)
+    return Promise.resolve([])
+  }
   return Promise.resolve(books)
 }
 
 export const getMockHadiths = (collection, chapterId, page = 1, limit = 20) => {
-  let collectionHadiths = mockHadiths[collection] || mockHadiths.bukhari
+  // Return empty hadiths if collection doesn't exist in mockHadiths
+  // Do NOT fall back to another collection's data
+  let collectionHadiths = mockHadiths[collection]
+  
+  if (!collectionHadiths) {
+    console.warn(`No hadiths found for collection: ${collection}`)
+    return Promise.resolve({
+      hadiths: [],
+      total: 0,
+      page,
+      totalPages: 0
+    })
+  }
   
   // Filter hadiths by chapterId (which is the book/chapter number)
   if (chapterId) {
     collectionHadiths = collectionHadiths.filter(h => h.chapterId === parseInt(chapterId))
   }
   
-  // If no filtered results, return all from collection
+  // If no filtered results, return empty array for this chapter
   if (collectionHadiths.length === 0) {
-    collectionHadiths = mockHadiths[collection] || mockHadiths.bukhari
+    return Promise.resolve({
+      hadiths: [],
+      total: 0,
+      page,
+      totalPages: 0
+    })
   }
   
   // Apply pagination
@@ -184,14 +207,33 @@ export const getMockHadiths = (collection, chapterId, page = 1, limit = 20) => {
 }
 
 export const getMockRandomHadith = () => {
-  const collections = Object.keys(mockHadiths)
-  const randomCollection = collections[Math.floor(Math.random() * collections.length)]
+  // Get all available collections that have hadiths data
+  const availableCollections = Object.keys(mockHadiths)
+  
+  if (availableCollections.length === 0) {
+    return Promise.resolve({
+      hadith: null,
+      collection: null,
+      book: null
+    })
+  }
+  
+  const randomCollection = availableCollections[Math.floor(Math.random() * availableCollections.length)]
   const hadiths = mockHadiths[randomCollection]
+  
+  if (!hadiths || hadiths.length === 0) {
+    return Promise.resolve({
+      hadith: null,
+      collection: null,
+      book: null
+    })
+  }
+  
   const randomHadith = hadiths[Math.floor(Math.random() * hadiths.length)]
   
   const collection = mockCollections.find(c => c.name === randomCollection)
-  const books = mockBooks[randomCollection] || mockBooks.bukhari
-  const book = books[0]
+  const books = mockBooks[randomCollection] || []
+  const book = books[0] || null
   
   return Promise.resolve({
     hadith: randomHadith,
