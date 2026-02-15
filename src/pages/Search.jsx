@@ -30,7 +30,7 @@ const Search = () => {
       setHasSearched(true)
       
       const data = await searchHadiths(searchQuery.trim())
-      setResults(data || [])
+      setResults(data.hadiths || data || [])
     } catch (err) {
       console.error('Search error:', err)
       setError('Failed to search hadiths. Please try again.')

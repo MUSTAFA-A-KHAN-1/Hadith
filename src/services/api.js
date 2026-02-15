@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getMockCollections, getMockBooks, getMockHadiths, getMockRandomHadith, mockCollections } from '../utils/mockData'
+import { getMockCollections, getMockBooks, getMockHadiths, getMockRandomHadith, mockCollections, mockHadiths } from '../utils/mockData'
 
 const API_BASE_URL = 'https://api.sunnah.com/v1'
 const API_KEY = import.meta.env.VITE_SUNNAH_API_KEY || 'your_api_key_here'
@@ -162,14 +162,13 @@ export const searchHadiths = async (query, page = 1, limit = 20) => {
   try {
     const available = await isApiAvailable()
     if (!available) {
-      // Simple mock search
-      const allHadiths = Object.values(mockCollections).flat ? [] : []
-      // Import mock hadiths for search
-      const { mockHadiths } = await import('../utils/mockData')
+      // Use mock hadiths for fallback search
       const allHadithsData = Object.values(mockHadiths).flat()
+      const lowerQuery = query.toLowerCase()
       const filtered = allHadithsData.filter(h => 
-        h.english?.toLowerCase().includes(query.toLowerCase()) ||
-        h.arabic?.includes(query)
+        (h.english && h.english.toLowerCase().includes(lowerQuery)) ||
+        (h.arabic && h.arabic.includes(query)) ||
+        (h.narrator && h.narrator.toLowerCase().includes(lowerQuery))
       ).slice(0, limit)
       return { hadiths: filtered, total: filtered.length, page, totalPages: 1 }
     }
@@ -179,11 +178,13 @@ export const searchHadiths = async (query, page = 1, limit = 20) => {
     return response.data
   } catch (error) {
     console.warn('Using mock data for search')
-    const { mockHadiths } = await import('../utils/mockData')
-    const allHadiths = Object.values(mockHadiths).flat()
-    const filtered = allHadiths.filter(h => 
-      h.english?.toLowerCase().includes(query.toLowerCase()) ||
-      h.arabic?.includes(query)
+    // Use mock hadiths for fallback search
+    const allHadithsData = Object.values(mockHadiths).flat()
+    const lowerQuery = query.toLowerCase()
+    const filtered = allHadithsData.filter(h => 
+      (h.english && h.english.toLowerCase().includes(lowerQuery)) ||
+      (h.arabic && h.arabic.includes(query)) ||
+      (h.narrator && h.narrator.toLowerCase().includes(lowerQuery))
     ).slice(0, limit)
     return { hadiths: filtered, total: filtered.length, page, totalPages: 1 }
   }
