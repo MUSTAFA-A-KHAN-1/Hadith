@@ -20,7 +20,7 @@ export const AppProvider = ({ children }) => {
   // Font size state
   const [fontSize, setFontSize] = useState(() => {
     const saved = localStorage.getItem('fontSize')
-    return saved ? parseInt(saved) : 18
+    return saved ? parseInt(saved) : 22
   })
 
   // Show Arabic state

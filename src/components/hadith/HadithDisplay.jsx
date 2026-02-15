@@ -113,7 +113,7 @@ const HadithDisplay = ({
         {showArabic && arabicText && (
           <div className="mb-6">
             <p 
-              className="font-arabic text-gray-900 dark:text-white leading-loose text-right"
+              className="font-arabic text-gray-900 dark:text-white leading-arabic text-right arabic-text"
               style={{ fontSize: `${fontSize}px` }}
             >
               {arabicText}

@@ -44,7 +44,22 @@ body {
 }
 
 .font-arabic {
-  font-family: 'Amiri', 'Scheherazade', serif;
+  font-family: 'Scheherazade New', 'Amiri', 'Noto Nastaliq Urdu', serif;
+}
+
+/* Arabic text optimizations */
+.arabic-text {
+  font-family: 'Scheherazade New', 'Amiri', 'Noto Nastaliq Urdu', serif;
+  letter-spacing: 0.05em;
+  word-spacing: 0.1em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Improved line height for Arabic */
+.leading-arabic {
+  line-height: 2;
 }
 
 /* Custom scrollbar */

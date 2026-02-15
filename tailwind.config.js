@@ -36,8 +36,11 @@ export default {
         },
       },
       fontFamily: {
-        arabic: ['Amiri', 'Scheherazade', 'serif'],
+        arabic: ['Scheherazade New', 'Amiri', 'Noto Nastaliq Urdu', 'serif'],
         english: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      lineHeight: {
+        'arabic': '2',
       },
       boxShadow: {
         'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',

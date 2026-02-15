@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import Card from '../common/Card'
 import GradeBadge from './GradeBadge'
+import { useApp } from '../../context/AppContext'
 import { getCollectionDisplayName } from '../../utils/constants'
 import { getArabicText, getEnglishText } from '../../utils/helpers'
 
@@ -15,6 +16,7 @@ const HadithCard = ({
   onBookmark,
   isBookmarked = false
 }) => {
+  const { fontSize } = useApp()
   const arabicText = getArabicText(hadith)
   const englishText = getEnglishText(hadith)
   const grade = hadith?.grades?.[0]?.grade || hadith?.grade
@@ -57,7 +59,10 @@ const HadithCard = ({
       {/* Arabic Text */}
       {arabicText && (
         <>
-          <p className="font-arabic text-xl md:text-2xl text-gray-900 dark:text-white leading-loose mb-4 text-right">
+          <p 
+            className="font-arabic text-gray-900 dark:text-white leading-arabic mb-4 text-right arabic-text"
+            style={{ fontSize: `${fontSize}px` }}
+          >
             {arabicText}
           </p>
           <div className="gold-divider my-4" />
