@@ -15,7 +15,7 @@ const transformHadiths = (data, defaultGrade = 'Sahih') => {
     hadithNumber: h.idInBook || h.id,
     grade: h.grade || defaultGrade,
     arabic: h.arabic,
-    english: typeof h.english === 'string' ? h.english : h.english?.text || h.english?.narrator || '',
+    english: typeof h.english === 'string' ? h.english : (h.english?.text || h.english?.narrator || ''),
     chapterId: h.chapterId,
     bookId: h.bookId
   }))
@@ -26,9 +26,9 @@ const transformBooks = (data) => {
   const chaptersArray = data.chapters || []
   return chaptersArray.map(ch => ({
     bookNumber: ch.id,
-    title: ch.english?.title || ch.arabic?.title || '',
-    english: ch.english?.title || '',
-    arabic: ch.arabic?.title || '',
+    title: ch.english || ch.arabic || '',
+    english: ch.english || '',
+    arabic: ch.arabic || '',
     hadiths: 0 // Will be calculated when loading hadiths
   }))
 }
@@ -37,11 +37,11 @@ const transformBooks = (data) => {
 const transformCollection = (data, name, defaultGrade = 'Sahih') => {
   return {
     name,
-    title: data.metadata?.english?.title || data.metadata?.arabic?.title || '',
-    author: data.metadata?.english?.author || data.metadata?.arabic?.author || '',
+    title: data.metadata?.english?.title || data.metadata?.arabic?.title || data.metadata?.english || data.metadata?.arabic || '',
+    author: data.metadata?.english?.author || data.metadata?.arabic?.author || data.metadata?.english || data.metadata?.arabic || '',
     hadiths: data.hadiths?.length || 0,
     books: data.chapters?.length || 0,
-    description: data.metadata?.english?.title || '',
+    description: data.metadata?.english?.title || data.metadata?.arabic?.title || '',
     grade: defaultGrade
   }
 }
