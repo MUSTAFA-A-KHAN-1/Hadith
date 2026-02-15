@@ -269,6 +269,19 @@ func (h *Handler) handleCallback(c *telebot.Callback) {
 		return
 	}
 
+	// Delete the original message if it's from a command (to clean up the chat)
+	// This applies to navigation from inline keyboards
+	isNavigation := false
+	switch parts[0] {
+	case "collections", "books", "hadiths", "hadith_detail", "random", "search", "search_next", "search_prev", "help":
+		isNavigation = true
+	}
+
+	if isNavigation && c.Message != nil {
+		// Try to delete the original command message
+		h.bot.Delete(c.Message)
+	}
+
 	switch parts[0] {
 	case "collections":
 		h.handleCollectionsCallback(c, parts)
