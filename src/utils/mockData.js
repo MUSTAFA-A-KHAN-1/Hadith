@@ -25,12 +25,19 @@ const transformHadiths = (data, defaultGrade = 'Sahih') => {
 // Transform book data from JSON files
 const transformBooks = (data) => {
   const chaptersArray = data.chapters || []
+  const hadithArray = data.hadiths || []
+  
+  // Calculate hadith count for each chapter
+  const getHadithCount = (chapterId) => {
+    return hadithArray.filter(h => h.chapterId === chapterId).length
+  }
+  
   return chaptersArray.map(ch => ({
     bookNumber: ch.id,
     title: ch.english || ch.arabic || '',
     englishTitle: ch.english || '',
     arabicTitle: ch.arabic || '',
-    hadithCount: 0, // Will be calculated when loading hadiths
+    hadithCount: getHadithCount(ch.id),
     chapterId: ch.id
   }))
 }

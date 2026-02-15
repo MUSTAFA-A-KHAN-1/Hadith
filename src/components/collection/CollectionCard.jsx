@@ -5,8 +5,8 @@ import { getCollectionDisplayName, formatNumber } from '../../utils/constants'
 
 const CollectionCard = ({ collection, index = 0 }) => {
   const name = getCollectionDisplayName(collection)
-  const bookCount = collection.bookCount || collection.books?.length || 0
-  const hadithCount = collection.hadithCount || collection.hadithsCount || 0
+  const bookCount = collection.bookCount || collection.books || 0
+  const hadithCount = collection.hadithCount || collection.hadithsCount || collection.hadiths || 0
 
   // Get Arabic name based on collection
   const getArabicName = (collectionName) => {
