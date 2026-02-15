@@ -1,5 +1,16 @@
 // Mock data for the Hadith Portal
 // This is used when the external API is unavailable
+import bukhariData from  '../data/bukhari.json'
+console.log(bukhariData);
+console.log("KEYS:", Object.keys(bukhariData))
+const hadithArray = bukhariData.hadiths || []
+const transformedBukhari = hadithArray.map(h => ({
+  hadithNumber: h.id,
+  grade: 'Sahih', // all Bukhari hadith are Sahih
+  arabic: h.arabic,
+  english: typeof h.english === 'string' ? h.english : h.english?.text || '',
+  bookNumber: h.bookId
+}))
 
 export const mockCollections = [
   {
@@ -157,18 +168,7 @@ export const mockBooks = {
 }
 
 export const mockHadiths = {
-  bukhari: [
-    { hadithNumber: 1, grade: 'Sahih', arabic: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ', english: 'Indeed, actions are but by intentions.', bookNumber: 1 },
-    { hadithNumber: 2, grade: 'Sahih', arabic: 'مَنْ أَحْدَثَ فِي أَمْرِنَا هَذَا مَا لَيْسَ مِنْهُ فَهُوَ رَدٌّ', english: 'Whoever innovates something in this matter of ours that is not part of it, will be rejected.', bookNumber: 1 },
-    { hadithNumber: 3, grade: 'Sahih', arabic: 'بُنِيَ الإِسْلَامُ عَلَى خَمْسٍ', english: 'Islam is built upon five things.', bookNumber: 1 },
-    { hadithNumber: 4, grade: 'Sahih', arabic: 'الطُّهُرُ شَطْرُ الإِيمَانِ', english: 'Purification is half of faith.', bookNumber: 1 },
-    { hadithNumber: 5, grade: 'Sahih', arabic: 'الْحَجُّ المَبْرُورُ لَيْسَ لَهُ جَزَاءٌ إِلَّا الْجَنَّةُ', english: 'An accepted Hajj brings no reward except Paradise.', bookNumber: 2 },
-    { hadithNumber: 6, grade: 'Sahih', arabic: 'مَنْ حَجَّ هَذَا البَيْتَ فَلَمْ يَرْفُثْ وَلَمْ يَفْسُقْ رَجَعَ كَيَوْمِ وَلَدَتْهُ أُمُّهُ', english: 'Whoever performs Hajj to this House and does not commit any evil, returns like the day his mother gave birth to him.', bookNumber: 2 },
-    { hadithNumber: 7, grade: 'Sahih', arabic: 'الْمُؤْمِنُ يَأْلَفُ وَلَا يُوحِشُ', english: 'The believer is friendly and not harsh.', bookNumber: 2 },
-    { hadithNumber: 8, grade: 'Sahih', arabic: 'خَيْرُ النَّاسِ أَعْمَلُهُمْ لِلنَّاسِ', english: 'The best of people are those who are most beneficial to others.', bookNumber: 2 },
-    { hadithNumber: 9, grade: 'Sahih', arabic: 'لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ', english: 'None of you truly believes until he loves for his brother what he loves for himself.', bookNumber: 2 },
-    { hadithNumber: 10, grade: 'Sahih', arabic: 'الْإِيمَانُ بِضْعٌ وَسِتُّونَ شُعْبَةً', english: 'Faith has over sixty branches.', bookNumber: 2 }
-  ],
+  bukhari: transformedBukhari,
   muslim: [
     { hadithNumber: 1, grade: 'Sahih', arabic: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ', english: 'Indeed, actions are but by intentions.', bookNumber: 1 },
     { hadithNumber: 2, grade: 'Sahih', arabic: 'الإِيمَانُ بِضْعٌ وَسِتُّونَ أَوْ سَبْعُونَ شُعْبَةً', english: 'Faith has sixty or seventy branches.', bookNumber: 1 },
