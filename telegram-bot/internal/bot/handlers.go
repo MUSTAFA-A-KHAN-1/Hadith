@@ -48,6 +48,9 @@ func (h *Handler) HandleCommands() {
 	// Command: /collections
 	h.bot.Handle("/collections", h.handleCollections)
 
+	// Inline query handler
+	h.bot.Handle(telebot.OnQuery, h.handleInlineQuery)
+
 	// Callback queries
 	h.bot.Handle(telebot.OnCallback, h.handleCallback)
 }
@@ -315,6 +318,185 @@ func (h *Handler) handleCallback(c *telebot.Callback) {
 
 	// Answer callback to remove loading state
 	h.bot.Respond(c, nil)
+}
+
+// handleInlineQuery handles inline queries
+// Format: @MyHadithBot random - returns random hadith
+//
+//	@MyHadithBot search <keyword> - returns search results
+func (h *Handler) handleInlineQuery(q *telebot.Query) {
+	// Parse the query
+	query := strings.TrimSpace(q.Text)
+	query = strings.ToLower(query)
+
+	var results telebot.Results
+
+	if query == "random" {
+		// Handle random hadith inline query
+		results = h.handleInlineRandom(q)
+	} else if strings.HasPrefix(query, "search ") {
+		// Handle search inline query
+		keyword := strings.TrimPrefix(query, "search ")
+		keyword = strings.TrimSpace(keyword)
+		if keyword != "" {
+			results = h.handleInlineSearch(q, keyword)
+		} else {
+			// Empty search - show help
+			results = h.handleInlineHelp(q)
+		}
+	} else if query == "" {
+		// Empty query - show help
+		results = h.handleInlineHelp(q)
+	} else {
+		// Unknown command - show help
+		results = h.handleInlineHelp(q)
+	}
+
+	// Send response with cache time of 10 seconds
+	h.bot.Answer(q, &telebot.QueryResponse{
+		Results:   results,
+		CacheTime: 10, // 10 seconds cache
+	})
+}
+
+// handleInlineRandom handles inline query for random hadith
+func (h *Handler) handleInlineRandom(q *telebot.Query) telebot.Results {
+	result := h.hadithService.GetRandomHadith()
+
+	if result.Hadith == nil {
+		return telebot.Results{}
+	}
+
+	// Format the hadith for inline display
+	hadithText := h.formatHadithForInline(result.Hadith, result.Collection, result.Book)
+
+	// Create unique result ID
+	resultID := fmt.Sprintf("random_%d_%d", result.Hadith.HadithNumber, time.Now().UnixNano())
+
+	article := &telebot.ArticleResult{
+		ResultBase: telebot.ResultBase{
+			ID: resultID,
+		},
+		Title:       "🎲 Random Hadith",
+		Description: fmt.Sprintf("Hadith #%d from %s", result.Hadith.HadithNumber, getCollectionTitle(result.Collection)),
+		Text:        hadithText,
+	}
+
+	return telebot.Results{article}
+}
+
+// handleInlineSearch handles inline query for search
+func (h *Handler) handleInlineSearch(q *telebot.Query, keyword string) telebot.Results {
+	results := h.hadithService.SearchHadiths(keyword, 1, 5)
+
+	if len(results.Hadiths) == 0 {
+		// No results - return a single result indicating no matches
+		article := &telebot.ArticleResult{
+			ResultBase: telebot.ResultBase{
+				ID: fmt.Sprintf("no_results_%d", time.Now().UnixNano()),
+			},
+			Title:       "🔍 No Results Found",
+			Description: fmt.Sprintf("No hadiths found for: %s", keyword),
+			Text:        fmt.Sprintf("No results found for \\*%s\\*", h.escapeMarkdown(keyword)),
+		}
+		return telebot.Results{article}
+	}
+
+	var inlineResults telebot.Results
+
+	for i, hadith := range results.Hadiths {
+		// Find the collection for this hadith
+		collectionName := h.findCollectionForHadith(hadith)
+		collection := h.hadithService.GetCollection(collectionName)
+
+		// Format hadith text
+		hadithText := h.formatHadithForInline(&hadith, collection, nil)
+
+		// Create unique result ID
+		resultID := fmt.Sprintf("search_%s_%d_%d_%d", keyword, hadith.HadithNumber, i, time.Now().UnixNano())
+
+		grade := hadith.Grade
+		if grade == "" {
+			grade = "Sahih"
+		}
+
+		description := truncate(hadith.English, 50)
+
+		article := &telebot.ArticleResult{
+			ResultBase: telebot.ResultBase{
+				ID: resultID,
+			},
+			Title:       fmt.Sprintf("🵿 Hadith #%d [%s]", hadith.HadithNumber, grade),
+			Description: description,
+			Text:        hadithText,
+		}
+
+		inlineResults = append(inlineResults, article)
+	}
+
+	return inlineResults
+}
+
+// handleInlineHelp handles inline query help/empty query
+func (h *Handler) handleInlineHelp(q *telebot.Query) telebot.Results {
+	article := &telebot.ArticleResult{
+		ResultBase: telebot.ResultBase{
+			ID: fmt.Sprintf("help_%d", time.Now().UnixNano()),
+		},
+		Title:       "🕌 Hadith Portal Bot",
+		Description: "Use @MyHadithBot random or @MyHadithBot search <keyword>",
+		Text:        "🕌 *Hadith Portal Bot*\\n\\nUse inline mode:\\n\\n• @MyHadithBot \\*random\\* - Get a random hadith\\n• @MyHadithBot \\*search <keyword>\\* - Search hadiths\\n\\nExample: @MyHadithBot search prayer",
+	}
+
+	return telebot.Results{article}
+}
+
+// formatHadithForInline formats a hadith for inline query display with MarkdownV2
+func (h *Handler) formatHadithForInline(hadith *models.Hadith, collection *models.Collection, book *models.Book) string {
+	collectionName := "Unknown Collection"
+	if collection != nil {
+		collectionName = collection.Title
+	}
+
+	bookNumber := 0
+	if book != nil {
+		bookNumber = book.BookNumber
+	}
+
+	grade := hadith.Grade
+	if grade == "" {
+		grade = "Sahih"
+	}
+
+	// Build the formatted message using MarkdownV2
+	var sb strings.Builder
+	sb.WriteString("🵿 *Hadith*\\n\\n")
+	sb.WriteString("*Arabic:*\\n")
+	sb.WriteString(h.escapeMarkdown(hadith.Arabic))
+	sb.WriteString("\\n\\n")
+	sb.WriteString("*English:*\\n")
+	sb.WriteString(h.escapeMarkdown(hadith.English))
+	sb.WriteString("\\n\\n")
+	sb.WriteString("*Reference:* ")
+	sb.WriteString(h.escapeMarkdown(collectionName))
+	sb.WriteString(", Book ")
+	sb.WriteString(fmt.Sprintf("%d", bookNumber))
+	sb.WriteString(", Hadith #")
+	sb.WriteString(fmt.Sprintf("%d", hadith.HadithNumber))
+	sb.WriteString("\\n")
+	sb.WriteString("*Grade:* ")
+	sb.WriteString(h.escapeMarkdown(grade))
+	sb.WriteString("\\n")
+
+	return sb.String()
+}
+
+// getCollectionTitle returns the title of a collection
+func getCollectionTitle(c *models.Collection) string {
+	if c == nil {
+		return "Unknown"
+	}
+	return c.Title
 }
 
 // handleHelpCallback handles help from inline keyboard
