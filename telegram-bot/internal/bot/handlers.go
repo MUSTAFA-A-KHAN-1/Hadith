@@ -273,7 +273,7 @@ func (h *Handler) handleCallback(c *telebot.Callback) {
 	// This applies to navigation from inline keyboards
 	isNavigation := false
 	switch parts[0] {
-	case "collections", "books", "hadiths", "hadith_detail", "random", "search", "search_next", "search_prev", "help":
+	case "collections", "books", "hadiths", "search", "search_next", "search_prev", "help":
 		isNavigation = true
 	}
 
