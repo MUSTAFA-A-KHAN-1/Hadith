@@ -29,10 +29,20 @@ func NewHadithService(dataDir string, apiURL, apiKey string, apiTimeout time.Dur
 
 	// Try to load data from files first
 	if dataDir != "" {
+		s.log.Info("Attempting to load hadith data from: %s", dataDir)
 		if loadedData, err := data.LoadHadithData(dataDir); err == nil && loadedData != nil {
 			s.data = loadedData
-			s.log.Info("Loaded hadith data from files")
+			// Log statistics
+			s.log.Info("Loaded hadith data - Collections: %d", len(s.data.Collections))
+			for _, c := range s.data.Collections {
+				books := s.data.Books[c.Name]
+				hadiths := s.data.Hadiths[c.Name]
+				s.log.Info("Collection %s: Books=%d, Hadiths=%d", c.Name, len(books), len(hadiths))
+			}
+			s.log.Info("Loaded hadith data from files successfully")
 			return s
+		} else {
+			s.log.Warn("Failed to load hadith data: %v", err)
 		}
 	}
 
@@ -112,12 +122,12 @@ func (s *HadithService) GetRandomHadith() models.RandomHadithResult {
 
 // CollectionNames returns display names for collections
 var CollectionNames = map[string]string{
-	"bukhari":   "Sahih al-Bukhari",
-	"muslim":    "Sahih Muslim",
-	"abudawud":  "Sunan Abu Dawood",
-	"tirmidhi":  "Jami' at-Tirmidhi",
-	"nasai":     "Sunan an-Nasa'i",
-	"ibnmajah":  "Sunan Ibn Majah",
+	"bukhari":  "Sahih al-Bukhari",
+	"muslim":   "Sahih Muslim",
+	"abudawud": "Sunan Abu Dawood",
+	"tirmidhi": "Jami' at-Tirmidhi",
+	"nasai":    "Sunan an-Nasa'i",
+	"ibnmajah": "Sunan Ibn Majah",
 }
 
 // GetCollectionDisplayName returns the display name for a collection
@@ -127,4 +137,3 @@ func GetCollectionDisplayName(collection string) string {
 	}
 	return collection
 }
-

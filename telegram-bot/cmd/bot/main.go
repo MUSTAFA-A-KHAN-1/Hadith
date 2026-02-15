@@ -56,10 +56,13 @@ func main() {
 	log.Info("Bot created successfully")
 
 	// Create hadith service
-	// Try to load from ../data relative to bot directory, or use current directory
-	dataDir := "./data"
+	// Try to load from data directory - check multiple possible locations
+	dataDir := "../../src/data"
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		dataDir = "../data"
+		dataDir = "../src/data"
+	}
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		dataDir = "./data"
 	}
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		dataDir = ""
