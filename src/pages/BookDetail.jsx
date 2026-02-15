@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useHadiths } from '../hooks/useHadiths'
+import { useBook } from '../hooks/useBooks'
 import { getCollectionDisplayName } from '../utils/constants'
 import HadithCard from '../components/hadith/HadithCard'
 import Loading from '../components/common/Loading'
@@ -9,7 +10,10 @@ import Button from '../components/common/Button'
 const BookDetail = () => {
   const { collectionId, bookNumber } = useParams()
   const { hadiths, loading, error, total } = useHadiths(collectionId, bookNumber)
+  const { book } = useBook(collectionId, bookNumber)
   const collectionName = getCollectionDisplayName(collectionId)
+  
+  const bookTitle = book?.title || `Book ${bookNumber}`
 
   return (
     <div className="min-h-screen py-8">
@@ -29,17 +33,17 @@ const BookDetail = () => {
               <Link to={`/collections/${collectionId}`} className="hover:text-primary dark:hover:text-primary-400">{collectionName}</Link>
             </li>
             <li>/</li>
-            <li className="text-gray-900 dark:text-white">Book {bookNumber}</li>
+            <li className="text-gray-900 dark:text-white">{bookTitle}</li>
           </ol>
         </nav>
 
         {/* Header */}
         <div className="mb-8 animate-fade-in" style={{ animationDelay: '100ms' }}>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            {collectionName} - Book {bookNumber}
+            {bookTitle}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {total ? `${total} hadiths` : 'Loading...'}
+            {collectionName} • {total ? `${total} hadiths` : 'Loading...'}
           </p>
         </div>
 

@@ -51,6 +51,12 @@ export const getGradeColor = (grade) => {
 export const getCollectionDisplayName = (collection) => {
   if (!collection) return ''
   
+  // If it's already a string, treat it as collectionId
+  if (typeof collection === 'string') {
+    return COLLECTION_NAMES[collection.toLowerCase()] || collection
+  }
+  
+  // If it's an object with name property
   if (collection.name && COLLECTION_NAMES[collection.name.toLowerCase()]) {
     return COLLECTION_NAMES[collection.name.toLowerCase()]
   }

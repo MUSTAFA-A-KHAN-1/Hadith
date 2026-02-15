@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useSingleHadith, useHadiths } from '../hooks/useHadiths'
+import { useBook } from '../hooks/useBooks'
 import { getCollectionDisplayName } from '../utils/constants'
 import HadithDisplay from '../components/hadith/HadithDisplay'
 import Loading from '../components/common/Loading'
@@ -9,7 +10,10 @@ const HadithDetail = () => {
   const { collectionId, bookNumber, hadithNumber } = useParams()
   const { hadith, loading, error } = useSingleHadith(collectionId, bookNumber, hadithNumber)
   const { hadiths: allHadiths } = useHadiths(collectionId, bookNumber, 1, 1000)
+  const { book } = useBook(collectionId, bookNumber)
   const collectionName = getCollectionDisplayName(collectionId)
+  
+  const bookTitle = book?.title || `Book ${bookNumber}`
 
   const currentHadithNum = parseInt(hadithNumber)
   
@@ -58,7 +62,7 @@ const HadithDetail = () => {
             </li>
             <li>/</li>
             <li>
-              <Link to={`/collections/${collectionId}/books/${bookNumber}`} className="hover:text-primary dark:hover:text-primary-400">Book {bookNumber}</Link>
+              <Link to={`/collections/${collectionId}/books/${bookNumber}`} className="hover:text-primary dark:hover:text-primary-400">{bookTitle}</Link>
             </li>
             <li>/</li>
             <li className="text-gray-900 dark:text-white">Hadith {hadithNumber}</li>
