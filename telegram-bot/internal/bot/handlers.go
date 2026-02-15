@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"time"
@@ -367,19 +368,23 @@ func (h *Handler) handleInlineRandom(q *telebot.Query) telebot.Results {
 		return telebot.Results{}
 	}
 
-	// Format the hadith for inline display
-	hadithText := h.formatHadithForInline(result.Hadith, result.Collection, result.Book)
-
 	// Create unique result ID
 	resultID := fmt.Sprintf("random_%d_%d", result.Hadith.HadithNumber, time.Now().UnixNano())
 
+	// use HTML for inline content (more consistent across clients)
+	var content telebot.InputMessageContent = &telebot.InputTextMessageContent{
+		Text:      h.formatHadithForInlineHTML(result.Hadith, result.Collection, result.Book),
+		ParseMode: "HTML",
+	}
+
 	article := &telebot.ArticleResult{
 		ResultBase: telebot.ResultBase{
-			ID: resultID,
+			ID:      resultID,
+			Content: &content,
 		},
 		Title:       "🎲 Random Hadith",
 		Description: fmt.Sprintf("Hadith #%d from %s", result.Hadith.HadithNumber, getCollectionTitle(result.Collection)),
-		Text:        hadithText,
+		Text:        truncate(result.Hadith.English, 200),
 	}
 
 	return telebot.Results{article}
@@ -391,13 +396,19 @@ func (h *Handler) handleInlineSearch(q *telebot.Query, keyword string) telebot.R
 
 	if len(results.Hadiths) == 0 {
 		// No results - return a single result indicating no matches
+		content := telebot.InputMessageContent(&telebot.InputTextMessageContent{
+			Text:      html.EscapeString(fmt.Sprintf("No results found for %s", keyword)),
+			ParseMode: "HTML",
+		})
+
 		article := &telebot.ArticleResult{
 			ResultBase: telebot.ResultBase{
-				ID: fmt.Sprintf("no_results_%d", time.Now().UnixNano()),
+				ID:      fmt.Sprintf("no_results_%d", time.Now().UnixNano()),
+				Content: &content,
 			},
 			Title:       "🔍 No Results Found",
 			Description: fmt.Sprintf("No hadiths found for: %s", keyword),
-			Text:        fmt.Sprintf("No results found for \\*%s\\*", h.escapeMarkdown(keyword)),
+			Text:        fmt.Sprintf("No results found for %s", keyword),
 		}
 		return telebot.Results{article}
 	}
@@ -409,8 +420,8 @@ func (h *Handler) handleInlineSearch(q *telebot.Query, keyword string) telebot.R
 		collectionName := h.findCollectionForHadith(hadith)
 		collection := h.hadithService.GetCollection(collectionName)
 
-		// Format hadith text
-		hadithText := h.formatHadithForInline(&hadith, collection, nil)
+		// Format hadith text (HTML for inline)
+		hadithTextHTML := h.formatHadithForInlineHTML(&hadith, collection, nil)
 
 		// Create unique result ID
 		resultID := fmt.Sprintf("search_%s_%d_%d_%d", keyword, hadith.HadithNumber, i, time.Now().UnixNano())
@@ -422,13 +433,19 @@ func (h *Handler) handleInlineSearch(q *telebot.Query, keyword string) telebot.R
 
 		description := truncate(hadith.English, 50)
 
+		content := telebot.InputMessageContent(&telebot.InputTextMessageContent{
+			Text:      hadithTextHTML,
+			ParseMode: "HTML",
+		})
+
 		article := &telebot.ArticleResult{
 			ResultBase: telebot.ResultBase{
-				ID: resultID,
+				ID:      resultID,
+				Content: &content,
 			},
 			Title:       fmt.Sprintf("🵿 Hadith #%d [%s]", hadith.HadithNumber, grade),
 			Description: description,
-			Text:        hadithText,
+			Text:        truncate(hadith.English, 200),
 		}
 
 		inlineResults = append(inlineResults, article)
@@ -439,19 +456,25 @@ func (h *Handler) handleInlineSearch(q *telebot.Query, keyword string) telebot.R
 
 // handleInlineHelp handles inline query help/empty query
 func (h *Handler) handleInlineHelp(q *telebot.Query) telebot.Results {
+	content := telebot.InputMessageContent(&telebot.InputTextMessageContent{
+		Text:      "🕌 *Hadith Portal Bot*\n\nUse inline mode:\n\n• @MyHadithBot *random* - Get a random hadith\n• @MyHadithBot *search <keyword>* - Search hadiths\n\nExample: @MyHadithBot search prayer",
+		ParseMode: "MarkdownV2",
+	})
+
 	article := &telebot.ArticleResult{
 		ResultBase: telebot.ResultBase{
-			ID: fmt.Sprintf("help_%d", time.Now().UnixNano()),
+			ID:      fmt.Sprintf("help_%d", time.Now().UnixNano()),
+			Content: &content,
 		},
 		Title:       "🕌 Hadith Portal Bot",
 		Description: "Use @MyHadithBot random or @MyHadithBot search <keyword>",
-		Text:        "🕌 *Hadith Portal Bot*\\n\\nUse inline mode:\\n\\n• @MyHadithBot \\*random\\* - Get a random hadith\\n• @MyHadithBot \\*search <keyword>\\* - Search hadiths\\n\\nExample: @MyHadithBot search prayer",
+		Text:        "🕌 *Hadith Portal Bot*\n\nUse inline mode:\n\n• @MyHadithBot *random* - Get a random hadith\n• @MyHadithBot *search <keyword>* - Search hadiths\n\nExample: @MyHadithBot search prayer",
 	}
 
 	return telebot.Results{article}
 }
 
-// formatHadithForInline formats a hadith for inline query display with MarkdownV2
+// formatHadithForInline formats a hadith for inline query display (Markdown)
 func (h *Handler) formatHadithForInline(hadith *models.Hadith, collection *models.Collection, book *models.Book) string {
 	collectionName := "Unknown Collection"
 	if collection != nil {
@@ -468,25 +491,65 @@ func (h *Handler) formatHadithForInline(hadith *models.Hadith, collection *model
 		grade = "Sahih"
 	}
 
-	// Build the formatted message using MarkdownV2
+	// Build the formatted message using legacy Markdown
 	var sb strings.Builder
-	sb.WriteString("🵿 *Hadith*\\n\\n")
-	sb.WriteString("*Arabic:*\\n")
+	sb.WriteString("🵿 *Hadith*\n\n")
+	sb.WriteString("*Arabic:*\n")
 	sb.WriteString(h.escapeMarkdown(hadith.Arabic))
-	sb.WriteString("\\n\\n")
-	sb.WriteString("*English:*\\n")
+	sb.WriteString("\n\n")
+	sb.WriteString("*English:*\n")
 	sb.WriteString(h.escapeMarkdown(hadith.English))
-	sb.WriteString("\\n\\n")
+	sb.WriteString("\n\n")
 	sb.WriteString("*Reference:* ")
 	sb.WriteString(h.escapeMarkdown(collectionName))
 	sb.WriteString(", Book ")
 	sb.WriteString(fmt.Sprintf("%d", bookNumber))
 	sb.WriteString(", Hadith #")
 	sb.WriteString(fmt.Sprintf("%d", hadith.HadithNumber))
-	sb.WriteString("\\n")
+	sb.WriteString("\n")
 	sb.WriteString("*Grade:* ")
 	sb.WriteString(h.escapeMarkdown(grade))
-	sb.WriteString("\\n")
+	sb.WriteString("\n")
+
+	return sb.String()
+}
+
+// formatHadithForInlineHTML formats a hadith for inline results using HTML parse mode
+func (h *Handler) formatHadithForInlineHTML(hadith *models.Hadith, collection *models.Collection, book *models.Book) string {
+	collectionName := "Unknown Collection"
+	if collection != nil {
+		collectionName = collection.Title
+	}
+
+	bookNumber := 0
+	if book != nil {
+		bookNumber = book.BookNumber
+	}
+
+	grade := hadith.Grade
+	if grade == "" {
+		grade = "Sahih"
+	}
+
+	// Escape user content for HTML and build message using simple tags
+	var sb strings.Builder
+	sb.WriteString("🵿 <b>Hadith</b>\n\n")
+	sb.WriteString("<b>Arabic:</b>\n")
+	sb.WriteString(html.EscapeString(hadith.Arabic))
+	sb.WriteString("\n\n")
+	sb.WriteString("<b>English:</b>\n")
+	sb.WriteString(html.EscapeString(hadith.English))
+	sb.WriteString("\n\n")
+	sb.WriteString("<b>Reference:</b> ")
+	sb.WriteString(html.EscapeString(collectionName))
+	sb.WriteString(", Book ")
+	sb.WriteString(fmt.Sprintf("%d", bookNumber))
+	sb.WriteString(", Hadith #")
+	sb.WriteString(fmt.Sprintf("%d", hadith.HadithNumber))
+	sb.WriteString("\n")
+	sb.WriteString("<b>Grade:</b> ")
+	sb.WriteString(html.EscapeString(grade))
+	sb.WriteString("\n")
 
 	return sb.String()
 }
