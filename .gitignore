@@ -1,3 +1,4 @@
 node_modules/*
 dist/*
 telegram-bot/.env
+telegram-bot/cmd/bot/.env
