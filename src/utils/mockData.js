@@ -16,6 +16,7 @@ const transformHadiths = (data, defaultGrade = 'Sahih') => {
     grade: h.grade || defaultGrade,
     arabic: h.arabic,
     english: typeof h.english === 'string' ? h.english : (h.english?.text || h.english?.narrator || ''),
+    narrator: h.english?.narrator || '',
     chapterId: h.chapterId,
     bookId: h.bookId
   }))
@@ -27,9 +28,10 @@ const transformBooks = (data) => {
   return chaptersArray.map(ch => ({
     bookNumber: ch.id,
     title: ch.english || ch.arabic || '',
-    english: ch.english || '',
-    arabic: ch.arabic || '',
-    hadiths: 0 // Will be calculated when loading hadiths
+    englishTitle: ch.english || '',
+    arabicTitle: ch.arabic || '',
+    hadithCount: 0, // Will be calculated when loading hadiths
+    chapterId: ch.id
   }))
 }
 

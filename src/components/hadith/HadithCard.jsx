@@ -68,7 +68,14 @@ const HadithCard = ({
           <div className="gold-divider my-4" />
         </>
       )}
-
+      {/* Narrator Chain (Isnad) */}
+      {(hadith?.attribution || hadith?.narrator) && (
+        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            <span className="font-medium"></span> {hadith.attribution || hadith.narrator}
+          </p>
+        </div>
+      )}
       {/* English Text */}
       {englishText && (
         <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
@@ -76,14 +83,7 @@ const HadithCard = ({
         </p>
       )}
 
-      {/* Narrator Chain (Isnad) */}
-      {hadith?.attribution && (
-        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            <span className="font-medium">Narrated by:</span> {hadith.attribution}
-          </p>
-        </div>
-      )}
+      
     </Card>
   )
 }
