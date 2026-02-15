@@ -1,60 +1,88 @@
 // Mock data for the Hadith Portal
 // This is used when the external API is unavailable
-import bukhariData from  '../data/bukhari.json'
-console.log(bukhariData);
-console.log("KEYS:", Object.keys(bukhariData))
-const hadithArray = bukhariData.hadiths || []
-const transformedBukhari = hadithArray.map(h => ({
-  hadithNumber: h.id,
-  grade: 'Sahih', // all Bukhari hadith are Sahih
-  arabic: h.arabic,
-  english: typeof h.english === 'string' ? h.english : h.english?.text || '',
-  bookNumber: h.chapterId // Use chapterId to identify the book/chapter
-}))
+import bukhariData from '../data/bukhari.json'
+import muslimData from '../data/muslim.json'
+import abudawudData from '../data/abudawud.json'
+import tirmidhiData from '../data/tirmidhi.json'
+import nasaiData from '../data/nasai.json'
+import ibnmajahData from '../data/ibnmajah.json'
+import darimiData from '../data/darimi.json'
+
+// Transform hadith data from JSON files to the format used by the app
+const transformHadiths = (data, defaultGrade = 'Sahih') => {
+  const hadithArray = data.hadiths || []
+  return hadithArray.map(h => ({
+    hadithNumber: h.idInBook || h.id,
+    grade: h.grade || defaultGrade,
+    arabic: h.arabic,
+    english: typeof h.english === 'string' ? h.english : h.english?.text || h.english?.narrator || '',
+    chapterId: h.chapterId,
+    bookId: h.bookId
+  }))
+}
+
+// Transform book data from JSON files
+const transformBooks = (data) => {
+  const chaptersArray = data.chapters || []
+  return chaptersArray.map(ch => ({
+    bookNumber: ch.id,
+    title: ch.english?.title || ch.arabic?.title || '',
+    english: ch.english?.title || '',
+    arabic: ch.arabic?.title || '',
+    hadiths: 0 // Will be calculated when loading hadiths
+  }))
+}
+
+// Transform collection metadata from JSON files
+const transformCollection = (data, name, defaultGrade = 'Sahih') => {
+  return {
+    name,
+    title: data.metadata?.english?.title || data.metadata?.arabic?.title || '',
+    author: data.metadata?.english?.author || data.metadata?.arabic?.author || '',
+    hadiths: data.hadiths?.length || 0,
+    books: data.chapters?.length || 0,
+    description: data.metadata?.english?.title || '',
+    grade: defaultGrade
+  }
+}
+
+// Pre-transform all data
+const bukhariHadiths = transformHadiths(bukhariData, 'Sahih')
+const bukhariBooks = transformBooks(bukhariData)
+const bukhariCollection = transformCollection(bukhariData, 'bukhari', 'Sahih')
+
+const muslimHadiths = transformHadiths(muslimData, 'Sahih')
+const muslimBooks = transformBooks(muslimData)
+const muslimCollection = transformCollection(muslimData, 'muslim', 'Sahih')
+
+const abudawudHadiths = transformHadiths(abudawudData, 'Sahih')
+const abudawudBooks = transformBooks(abudawudData)
+const abudawudCollection = transformCollection(abudawudData, 'abudawud', 'Sahih')
+
+const tirmidhiHadiths = transformHadiths(tirmidhiData, 'Sahih')
+const tirmidhiBooks = transformBooks(tirmidhiData)
+const tirmidhiCollection = transformCollection(tirmidhiData, 'tirmidhi', 'Sahih')
+
+const nasaiHadiths = transformHadiths(nasaiData, 'Sahih')
+const nasaiBooks = transformBooks(nasaiData)
+const nasaiCollection = transformCollection(nasaiData, 'nasai', 'Sahih')
+
+const ibnmajahHadiths = transformHadiths(ibnmajahData, 'Sahih')
+const ibnmajahBooks = transformBooks(ibnmajahData)
+const ibnmajahCollection = transformCollection(ibnmajahData, 'ibnmajah', 'Sahih')
+
+const darimiHadiths = transformHadiths(darimiData, 'Sahih')
+const darimiBooks = transformBooks(darimiData)
+const darimiCollection = transformCollection(darimiData, 'darimi', 'Sahih')
 
 export const mockCollections = [
-  {
-    name: 'bukhari',
-    title: 'Sahih al-Bukhari',
-    hadiths: 7563,
-    books: 97,
-    description: 'The most authentic collection of hadiths'
-  },
-  {
-    name: 'muslim',
-    title: 'Sahih Muslim',
-    hadiths: 7500,
-    books: 56,
-    description: 'The second most authentic collection'
-  },
-  {
-    name: 'abudawud',
-    title: 'Sunan Abu Dawood',
-    hadiths: 5278,
-    books: 43,
-    description: 'Collection of hadiths judged by scholars to be Hassan or Sahih'
-  },
-  {
-    name: 'tirmidhi',
-    title: "Jami'at-Tirmidhi",
-    hadiths: 3956,
-    books: 27,
-    description: 'One of the six major hadith collections'
-  },
-  {
-    name: 'nasai',
-    title: 'Sunan an-Nasai',
-    hadiths: 5762,
-    books: 52,
-    description: 'Another of the six major hadith collections'
-  },
-  {
-    name: 'ibnmajah',
-    title: 'Sunan Ibn Majah',
-    hadiths: 4341,
-    books: 37,
-    description: 'One of the six major Sunni hadith collections'
-  },
+  bukhariCollection,
+  muslimCollection,
+  abudawudCollection,
+  tirmidhiCollection,
+  nasaiCollection,
+  ibnmajahCollection,
+  darimiCollection,
   {
     name: 'muwatta',
     title: 'Muwatta Imam Malik',
@@ -93,142 +121,23 @@ export const mockCollections = [
 ]
 
 export const mockBooks = {
-  bukhari: [
-    { bookNumber: 1, title: 'Revelation', hadiths: 165 },
-    { bookNumber: 2, title: 'Faith', hadiths: 225 },
-    { bookNumber: 3, title: 'Knowledge', hadiths: 190 },
-    { bookNumber: 4, title: 'Ablutions', hadiths: 175 },
-    { bookNumber: 5, title: 'Bath', hadiths: 105 },
-    { bookNumber: 6, title: 'Menstruation', hadiths: 65 },
-    { bookNumber: 7, title: 'Prayers', hadiths: 350 },
-    { bookNumber: 8, title: 'Friday Prayer', hadiths: 110 },
-    { bookNumber: 9, title: 'Eid Prayers', hadiths: 65 },
-    { bookNumber: 10, title: 'Traveling', hadiths: 180 }
-  ],
-  muslim: [
-    { bookNumber: 1, title: 'The Book of Faith', hadiths: 340 },
-    { bookNumber: 2, title: 'The Book of Purification', hadiths: 280 },
-    { bookNumber: 3, title: 'The Book of Menstruation', hadiths: 95 },
-    { bookNumber: 4, title: 'The Book of Prayers', hadiths: 400 },
-    { bookNumber: 5, title: 'The Book of Friday', hadiths: 150 },
-    { bookNumber: 6, title: 'The Book of Fasting', hadiths: 220 },
-    { bookNumber: 7, title: 'The Book of Hajj', hadiths: 280 },
-    { bookNumber: 8, title: 'The Book of Marriage', hadiths: 210 },
-    { bookNumber: 9, title: 'The Book of Divorce', hadiths: 120 },
-    { bookNumber: 10, title: 'The Book of Food', hadiths: 175 }
-  ],
-  abudawud: [
-    { bookNumber: 1, title: 'Purification', hadiths: 200 },
-    { bookNumber: 2, title: 'Prayers', hadiths: 350 },
-    { bookNumber: 3, title: 'Friday Prayers', hadiths: 120 },
-    { bookNumber: 4, title: 'Eid Prayers', hadiths: 80 },
-    { bookNumber: 5, title: 'Traveling', hadiths: 150 },
-    { bookNumber: 6, title: 'Fasting', hadiths: 210 },
-    { bookNumber: 7, title: 'Hajj', hadiths: 240 },
-    { bookNumber: 8, title: 'Marriage', hadiths: 180 },
-    { bookNumber: 9, title: 'Divorce', hadiths: 90 },
-    { bookNumber: 10, title: 'Food', hadiths: 150 }
-  ],
-  tirmidhi: [
-    { bookNumber: 1, title: 'The Book of Faith', hadiths: 180 },
-    { bookNumber: 2, title: 'The Book of Purification', hadiths: 150 },
-    { bookNumber: 3, title: 'The Book of Prayer', hadiths: 280 },
-    { bookNumber: 4, title: 'The Book of Friday', hadiths: 95 },
-    { bookNumber: 5, title: 'The Book of Fasting', hadiths: 120 },
-    { bookNumber: 6, title: 'The Book of Hajj', hadiths: 165 },
-    { bookNumber: 7, title: 'The Book of Marriage', hadiths: 145 },
-    { bookNumber: 8, title: 'The Book of Oaths and Vows', hadiths: 85 },
-    { bookNumber: 9, title: 'The Book of Blood Money', hadiths: 70 },
-    { bookNumber: 10, title: 'The Book of Knowledge', hadiths: 110 }
-  ],
-  nasai: [
-    { bookNumber: 1, title: 'The Book of Purification', hadiths: 220 },
-    { bookNumber: 2, title: 'The Book of Menstruation', hadiths: 75 },
-    { bookNumber: 3, title: 'The Book of Prayer', hadiths: 380 },
-    { bookNumber: 4, title: 'The Book of Friday', hadiths: 125 },
-    { bookNumber: 5, title: 'The Book of Eid', hadiths: 85 },
-    { bookNumber: 6, title: 'The Book of Travel', hadiths: 165 },
-    { bookNumber: 7, title: 'The Book of Fasting', hadiths: 195 },
-    { bookNumber: 8, title: 'The Book of Hajj', hadiths: 250 },
-    { bookNumber: 9, title: 'The Book of Marriage', hadiths: 175 },
-    { bookNumber: 10, title: 'The Book of Divorce', hadiths: 95 }
-  ],
-  ibnmajah: [
-    { bookNumber: 1, title: 'The Book of Purification', hadiths: 195 },
-    { bookNumber: 2, title: 'The Book of Prayer', hadiths: 320 },
-    { bookNumber: 3, title: 'The Book of the Call to Prayer', hadiths: 85 },
-    { bookNumber: 4, title: 'The Book of Friday', hadiths: 110 },
-    { bookNumber: 5, title: 'The Book of Eid', hadiths: 70 },
-    { bookNumber: 6, title: 'The Book of Fasting', hadiths: 175 },
-    { bookNumber: 7, title: 'The Book of Hajj', hadiths: 210 },
-    { bookNumber: 8, title: 'The Book of Marriage', hadiths: 165 },
-    { bookNumber: 9, title: 'The Book of Divorce', hadiths: 80 },
-    { bookNumber: 10, title: 'The Book of Transactions', hadiths: 220 }
-  ]
+  bukhari: bukhariBooks,
+  muslim: muslimBooks,
+  abudawud: abudawudBooks,
+  tirmidhi: tirmidhiBooks,
+  nasai: nasaiBooks,
+  ibnmajah: ibnmajahBooks,
+  darimi: darimiBooks
 }
 
 export const mockHadiths = {
-  bukhari: transformedBukhari,
-  muslim: [
-    { hadithNumber: 1, grade: 'Sahih', arabic: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ', english: 'Indeed, actions are but by intentions.', bookNumber: 1 },
-    { hadithNumber: 2, grade: 'Sahih', arabic: 'الإِيمَانُ بِضْعٌ وَسِتُّونَ أَوْ سَبْعُونَ شُعْبَةً', english: 'Faith has sixty or seventy branches.', bookNumber: 1 },
-    { hadithNumber: 3, grade: 'Sahih', arabic: 'الطُّهُرُ شَطْرُ الإِيمَانِ', english: 'Purification is half of faith.', bookNumber: 1 },
-    { hadithNumber: 4, grade: 'Sahih', arabic: 'مَنْ أَحْدَثَ فِي أَمْرِنَا مَا لَيْسَ مِنْهُ فَهُوَ رَدٌّ', english: 'Whoever introduces something into our affair that is not part of it will be rejected.', bookNumber: 1 },
-    { hadithNumber: 5, grade: 'Sahih', arabic: 'حُسْنُ الْخُلُقِ نِصْفُ الإِيمَانِ', english: 'Good character is half of faith.', bookNumber: 1 },
-    { hadithNumber: 6, grade: 'Sahih', arabic: 'الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ', english: 'A Muslim is one from whose tongue and hand the Muslims are safe.', bookNumber: 1 },
-    { hadithNumber: 7, grade: 'Sahih', arabic: 'لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ', english: 'None of you has faith until he loves for his brother what he loves for himself.', bookNumber: 1 },
-    { hadithNumber: 8, grade: 'Sahih', arabic: 'خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ', english: 'The best among you are those who learn the Quran and teach it.', bookNumber: 1 },
-    { hadithNumber: 9, grade: 'Sahih', arabic: 'صِفُوا الْمَلَائِكَةَ وَصِفُوا الْجِنَّ', english: 'Describe the angels and describe the jinn.', bookNumber: 1 },
-    { hadithNumber: 10, grade: 'Sahih', arabic: 'الْعِلْمُ قَبْلَ الْقَوْلِ وَالْعَمَلِ', english: 'Knowledge comes before speech and action.', bookNumber: 1 }
-  ],
-  abudawud: [
-    { hadithNumber: 1, grade: 'Sahih', arabic: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ', english: 'Indeed, actions are but by intentions.', bookNumber: 1 },
-    { hadithNumber: 2, grade: 'Sahih', arabic: 'مَنْ أَحْدَثَ فِي أَمْرِنَا مَا لَيْسَ مِنْهُ فَهُوَ رَدٌّ', english: 'Whoever introduces something into our affair that is not part of it will be rejected.', bookNumber: 1 },
-    { hadithNumber: 3, grade: 'Hasan', arabic: 'الطُّهُرُ شَطْرُ الإِيمَانِ', english: 'Purification is half of faith.', bookNumber: 1 },
-    { hadithNumber: 4, grade: 'Sahih', arabic: 'صِفُوا الْمَلَائِكَةَ وَصِفُوا الْجِنَّ', english: 'Describe the angels and describe the jinn.', bookNumber: 1 },
-    { hadithNumber: 5, grade: 'Sahih', arabic: 'الْعِلْمُ قَبْلَ الْقَوْلِ وَالْعَمَلِ', english: 'Knowledge comes before speech and action.', bookNumber: 1 },
-    { hadithNumber: 6, grade: 'Hasan', arabic: 'مَنْ سَلِكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ', english: 'Whoever follows a path seeking knowledge, Allah will make easy for him a path to Paradise.', bookNumber: 1 },
-    { hadithNumber: 7, grade: 'Sahih', arabic: 'الْمُؤْمِنُ يَأْلَفُ وَلَا يُوحِشُ', english: 'The believer is friendly and not harsh.', bookNumber: 1 },
-    { hadithNumber: 8, grade: 'Sahih', arabic: 'لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ', english: 'None of you has faith until he loves for his brother what he loves for himself.', bookNumber: 1 },
-    { hadithNumber: 9, grade: 'Sahih', arabic: 'خَيْرُ النَّاسِ أَعْمَلُهُمْ لِلنَّاسِ', english: 'The best of people are those most beneficial to others.', bookNumber: 1 },
-    { hadithNumber: 10, grade: 'Hasan', arabic: 'حُسْنُ الْخُلُقِ نِصْفُ الإِيمَانِ', english: 'Good character is half of faith.', bookNumber: 1 }
-  ],
-  tirmidhi: [
-    { hadithNumber: 1, grade: 'Sahih', arabic: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ', english: 'Indeed, actions are but by intentions.', bookNumber: 1 },
-    { hadithNumber: 2, grade: 'Sahih', arabic: 'الْإِيمَانُ بِضْعٌ وَسِتُّونَ شُعْبَةً', english: 'Faith has over sixty branches.', bookNumber: 1 },
-    { hadithNumber: 3, grade: 'Sahih', arabic: 'الطُّهُرُ شَطْرُ الإِيمَانِ', english: 'Purification is half of faith.', bookNumber: 1 },
-    { hadithNumber: 4, grade: 'Sahih', arabic: 'مَنْ أَحْدَثَ فِي أَمْرِنَا مَا لَيْسَ مِنْهُ فَهُوَ رَدٌّ', english: 'Whoever introduces something into our affair that is not part of it will be rejected.', bookNumber: 1 },
-    { hadithNumber: 5, grade: 'Hasan', arabic: 'حُسْنُ الْخُلُقِ نِصْفُ الإِيمَانِ', english: 'Good character is half of faith.', bookNumber: 1 },
-    { hadithNumber: 6, grade: 'Sahih', arabic: 'الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ', english: 'A Muslim is one from whose tongue and hand the Muslims are safe.', bookNumber: 1 },
-    { hadithNumber: 7, grade: 'Sahih', arabic: 'لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ', english: 'None of you has faith until he loves for his brother what he loves for himself.', bookNumber: 1 },
-    { hadithNumber: 8, grade: 'Sahih', arabic: 'خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ', english: 'The best among you are those who learn the Quran and teach it.', bookNumber: 1 },
-    { hadithNumber: 9, grade: 'Sahih', arabic: 'الْعِلْمُ قَبْلَ الْقَوْلِ وَالْعَمَلِ', english: 'Knowledge comes before speech and action.', bookNumber: 1 },
-    { hadithNumber: 10, grade: 'Hasan', arabic: 'مَنْ سَلِكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ', english: 'Whoever follows a path seeking knowledge, Allah will make easy for him a path to Paradise.', bookNumber: 1 }
-  ],
-  nasai: [
-    { hadithNumber: 1, grade: 'Sahih', arabic: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ', english: 'Indeed, actions are but by intentions.', bookNumber: 1 },
-    { hadithNumber: 2, grade: 'Sahih', arabic: 'الطُّهُرُ شَطْرُ الإِيمَانِ', english: 'Purification is half of faith.', bookNumber: 1 },
-    { hadithNumber: 3, grade: 'Sahih', arabic: 'الْإِيمَانُ بِضْعٌ وَسِتُّونَ شُعْبَةً', english: 'Faith has over sixty branches.', bookNumber: 1 },
-    { hadithNumber: 4, grade: 'Sahih', arabic: 'مَنْ أَحْدَثَ فِي أَمْرِنَا مَا لَيْسَ مِنْهُ فَهُوَ رَدٌّ', english: 'Whoever introduces something into our affair that is not part of it will be rejected.', bookNumber: 1 },
-    { hadithNumber: 5, grade: 'Sahih', arabic: 'حُسْنُ الْخُلُقِ نِصْفُ الإِيمَانِ', english: 'Good character is half of faith.', bookNumber: 1 },
-    { hadithNumber: 6, grade: 'Sahih', arabic: 'الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ', english: 'A Muslim is one from whose tongue and hand the Muslims are safe.', bookNumber: 1 },
-    { hadithNumber: 7, grade: 'Sahih', arabic: 'لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ', english: 'None of you has faith until he loves for his brother what he loves for himself.', bookNumber: 1 },
-    { hadithNumber: 8, grade: 'Sahih', arabic: 'خَيْرُ النَّاسِ أَعْمَلُهُمْ لِلنَّاسِ', english: 'The best of people are those most beneficial to others.', bookNumber: 1 },
-    { hadithNumber: 9, grade: 'Sahih', arabic: 'الْمُؤْمِنُ يَأْلَفُ وَلَا يُوحِشُ', english: 'The believer is friendly and not harsh.', bookNumber: 1 },
-    { hadithNumber: 10, grade: 'Sahih', arabic: 'خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ', english: 'The best among you are those who learn the Quran and teach it.', bookNumber: 1 }
-  ],
-  ibnmajah: [
-    { hadithNumber: 1, grade: 'Sahih', arabic: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ', english: 'Indeed, actions are but by intentions.', bookNumber: 1 },
-    { hadithNumber: 2, grade: 'Sahih', arabic: 'الطُّهُرُ شَطْرُ الإِيمَانِ', english: 'Purification is half of faith.', bookNumber: 1 },
-    { hadithNumber: 3, grade: 'Hasan', arabic: 'الْإِيمَانُ بِضْعٌ وَسِتُّونَ شُعْبَةً', english: 'Faith has over sixty branches.', bookNumber: 1 },
-    { hadithNumber: 4, grade: 'Sahih', arabic: 'مَنْ أَحْدَثَ فِي أَمْرِنَا مَا لَيْسَ مِنْهُ فَهُوَ رَدٌّ', english: 'Whoever introduces something into our affair that is not part of it will be rejected.', bookNumber: 1 },
-    { hadithNumber: 5, grade: 'Hasan', arabic: 'حُسْنُ الْخُلُقِ نِصْفُ الإِيمَانِ', english: 'Good character is half of faith.', bookNumber: 1 },
-    { hadithNumber: 6, grade: 'Sahih', arabic: 'الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ', english: 'A Muslim is one from whose tongue and hand the Muslims are safe.', bookNumber: 1 },
-    { hadithNumber: 7, grade: 'Sahih', arabic: 'لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ', english: 'None of you has faith until he loves for his brother what he loves for himself.', bookNumber: 1 },
-    { hadithNumber: 8, grade: 'Sahih', arabic: 'خَيْرُ النَّاسِ أَعْمَلُهُمْ لِلنَّاسِ', english: 'The best of people are those most beneficial to others.', bookNumber: 1 },
-    { hadithNumber: 9, grade: 'Hasan', arabic: 'الْمُؤْمِنُ يَأْلَفُ وَلَا يُوحِشُ', english: 'The believer is friendly and not harsh.', bookNumber: 1 },
-    { hadithNumber: 10, grade: 'Sahih', arabic: 'خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ', english: 'The best among you are those who learn the Quran and teach it.', bookNumber: 1 }
-  ]
+  bukhari: bukhariHadiths,
+  muslim: muslimHadiths,
+  abudawud: abudawudHadiths,
+  tirmidhi: tirmidhiHadiths,
+  nasai: nasaiHadiths,
+  ibnmajah: ibnmajahHadiths,
+  darimi: darimiHadiths
 }
 
 // Helper function to get mock data
@@ -239,21 +148,15 @@ export const getMockBooks = (collection) => {
   return Promise.resolve(books)
 }
 
-export const getMockHadiths = (collection, bookNumber, page = 1, limit = 20) => {
+export const getMockHadiths = (collection, chapterId, page = 1, limit = 20) => {
   let collectionHadiths = mockHadiths[collection] || mockHadiths.bukhari
   
-  // For Bukhari, filter by chapterId (which is the book/chapter number)
-  if (collection === 'bukhari') {
-    // Filter hadiths by the requested bookNumber (chapterId)
-    collectionHadiths = collectionHadiths.filter(h => h.bookNumber === parseInt(bookNumber))
-    
-    // If no hadiths found for this book, try with chapterId as fallback
-    if (collectionHadiths.length === 0) {
-      collectionHadiths = mockHadiths.bukhari.filter(h => h.chapterId === parseInt(bookNumber))
-    }
+  // Filter hadiths by chapterId (which is the book/chapter number)
+  if (chapterId) {
+    collectionHadiths = collectionHadiths.filter(h => h.chapterId === parseInt(chapterId))
   }
   
-  // If still no filtered results, return all from collection
+  // If no filtered results, return all from collection
   if (collectionHadiths.length === 0) {
     collectionHadiths = mockHadiths[collection] || mockHadiths.bukhari
   }
