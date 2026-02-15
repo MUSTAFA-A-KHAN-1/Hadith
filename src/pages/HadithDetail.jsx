@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { useSingleHadith } from '../hooks/useHadiths'
+import { useSingleHadith, useHadiths } from '../hooks/useHadiths'
 import { getCollectionDisplayName } from '../utils/constants'
 import HadithDisplay from '../components/hadith/HadithDisplay'
 import Loading from '../components/common/Loading'
@@ -8,11 +8,36 @@ import Error from '../components/common/Error'
 const HadithDetail = () => {
   const { collectionId, bookNumber, hadithNumber } = useParams()
   const { hadith, loading, error } = useSingleHadith(collectionId, bookNumber, hadithNumber)
+  const { hadiths: allHadiths } = useHadiths(collectionId, bookNumber, 1, 1000)
   const collectionName = getCollectionDisplayName(collectionId)
 
   const currentHadithNum = parseInt(hadithNumber)
-  const previousHadith = currentHadithNum > 1 ? currentHadithNum - 1 : null
-  const nextHadith = currentHadithNum + 1
+  
+  // Get valid previous/next hadith numbers based on actual available hadiths
+  const getValidPreviousHadith = () => {
+    if (!allHadiths || allHadiths.length === 0) return currentHadithNum > 1 ? currentHadithNum - 1 : null
+    const hadithNumbers = allHadiths
+      .map(h => h.hadithNumber || h.hadith || h.id)
+      .filter(n => n != null)
+      .sort((a, b) => a - b)
+    const currentIndex = hadithNumbers.indexOf(currentHadithNum)
+    if (currentIndex > 0) return hadithNumbers[currentIndex - 1]
+    return null
+  }
+  
+  const getValidNextHadith = () => {
+    if (!allHadiths || allHadiths.length === 0) return currentHadithNum + 1
+    const hadithNumbers = allHadiths
+      .map(h => h.hadithNumber || h.hadith || h.id)
+      .filter(n => n != null)
+      .sort((a, b) => a - b)
+    const currentIndex = hadithNumbers.indexOf(currentHadithNum)
+    if (currentIndex >= 0 && currentIndex < hadithNumbers.length - 1) return hadithNumbers[currentIndex + 1]
+    return null
+  }
+  
+  const previousHadith = getValidPreviousHadith()
+  const nextHadith = getValidNextHadith()
 
   return (
     <div className="min-h-screen py-8">

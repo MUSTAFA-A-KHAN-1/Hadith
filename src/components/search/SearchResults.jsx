@@ -3,6 +3,19 @@ import Card from '../common/Card'
 import GradeBadge from '../hadith/GradeBadge'
 import { getCollectionDisplayName } from '../../utils/constants'
 import { getArabicText, getEnglishText, truncateText } from '../../utils/helpers'
+import { mockHadiths } from '../../utils/mockData'
+
+// Helper to find which collection a hadith belongs to
+const findCollectionForHadith = (hadith) => {
+  for (const [collectionName, hadiths] of Object.entries(mockHadiths)) {
+    const found = hadiths.find(h => 
+      h.hadithNumber === hadith.hadithNumber && 
+      h.chapterId === hadith.chapterId
+    )
+    if (found) return collectionName
+  }
+  return 'bukhari' // default
+}
 
 const SearchResults = ({ results, loading }) => {
   if (loading) {
@@ -49,13 +62,17 @@ const SearchResults = ({ results, loading }) => {
         const collection = result.collection || {}
         const collectionName = getCollectionDisplayName(collection)
         const grade = result.grades?.[0]?.grade || result.grade
-        const bookNumber = result.bookNumber || result.book || 1
+        
+        // Use chapterId as bookNumber since the data uses chapterId to identify books
+        // Also try to find the correct collection for this hadith
+        const resolvedCollection = collection.name || findCollectionForHadith(result)
+        const bookNumber = result.chapterId || result.bookNumber || result.book || 1
         const hadithNumber = result.hadithNumber || result.hadith || result.id
 
         return (
           <Link
             key={result.id || index}
-            to={`/collections/${collection.name || 'bukhari'}/books/${bookNumber}/hadith/${hadithNumber}`}
+            to={`/collections/${resolvedCollection}/books/${bookNumber}/hadith/${hadithNumber}`}
           >
             <Card 
               className="animate-fade-in"

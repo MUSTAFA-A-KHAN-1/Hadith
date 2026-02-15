@@ -120,44 +120,48 @@ const Bookmarks = () => {
         {!error && bookmarkedHadiths.length > 0 && (
           <div className="space-y-6">
             {bookmarkedHadiths.map((bookmark, index) => (
-              <Card 
-                key={bookmark.id} 
-                className="animate-fade-in relative"
-                style={{ animationDelay: `${index * 50}ms` }}
+              <Link
+                key={bookmark.id}
+                to={`/collections/${bookmark.collection}/books/${bookmark.bookNumber}/hadith/${bookmark.hadithNumber}`}
               >
-                <button
-                  onClick={() => handleRemove(bookmark)}
-                  className="absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  aria-label="Remove bookmark"
+                <Card 
+                  className="animate-fade-in relative"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <svg className="w-5 h-5 text-gray-400 hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleRemove(bookmark)
+                    }}
+                    className="absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    aria-label="Remove bookmark"
+                  >
+                    <svg className="w-5 h-5 text-gray-400 hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
 
-                <div className="pr-12">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Link
-                      to={`/collections/${bookmark.collection}/books/${bookmark.bookNumber}/hadith/${bookmark.hadithNumber}`}
-                      className="text-sm text-primary dark:text-primary-400 hover:underline"
-                    >
-                      {bookmark.collectionName}, Book {bookmark.bookNumber}, Hadith {bookmark.hadithNumber}
-                    </Link>
+                  <div className="pr-12">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm text-primary dark:text-primary-400">
+                        {bookmark.collectionName}, Book {bookmark.bookNumber}, Hadith {bookmark.hadithNumber}
+                      </span>
+                    </div>
+
+                    {bookmark.hadith?.arabic && (
+                      <p className="font-arabic text-lg text-gray-900 dark:text-white mb-3 line-clamp-2">
+                        {bookmark.hadith.arabic}
+                      </p>
+                    )}
+
+                    {bookmark.hadith?.text && (
+                      <p className="text-gray-600 dark:text-gray-400 line-clamp-2">
+                        {bookmark.hadith.text}
+                      </p>
+                    )}
                   </div>
-
-                  {bookmark.hadith?.arabic && (
-                    <p className="font-arabic text-lg text-gray-900 dark:text-white mb-3 line-clamp-2">
-                      {bookmark.hadith.arabic}
-                    </p>
-                  )}
-
-                  {bookmark.hadith?.text && (
-                    <p className="text-gray-600 dark:text-gray-400 line-clamp-2">
-                      {bookmark.hadith.text}
-                    </p>
-                  )}
-                </div>
-              </Card>
+                </Card>
+              </Link>
             ))}
           </div>
         )}
