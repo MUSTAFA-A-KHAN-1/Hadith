@@ -394,8 +394,13 @@ func (h *Handler) formatHadithDisplay(hdt *models.Hadith, col *models.Collection
 		grade = hdt.Grade
 	}
 
-	return fmt.Sprintf("🵿 *Hadith*\n\n%s\n\n%s\n\n*Reference:* %s, Book %d, #%d\n*Grade:* %s",
-		hdt.Arabic, hdt.English, colTitle, bookNum, hdt.HadithNumber, grade)
+	narrator := ""
+	if hdt.Narrator != "" {
+		narrator = fmt.Sprintf("\n*:* %s\n", hdt.Narrator)
+	}
+
+	return fmt.Sprintf("🵿 *Hadith*\n\n%s%s\n\n%s\n\n*Reference:* %s, Book %d, #%d\n*Grade:* %s",
+		hdt.Arabic, narrator, hdt.English, colTitle, bookNum, hdt.HadithNumber, grade)
 }
 
 func (h *Handler) formatHadithForInlineHTML(hadith *models.Hadith, collection *models.Collection, book *models.Book) string {
@@ -408,8 +413,13 @@ func (h *Handler) formatHadithForInlineHTML(hadith *models.Hadith, collection *m
 		grade = hadith.Grade
 	}
 
-	return fmt.Sprintf("🵿 <b>Hadith</b>\n\n%s\n\n%s\n\n<b>Ref:</b> %s, #%d\n<b>Grade:</b> %s",
-		html.EscapeString(hadith.Arabic), html.EscapeString(hadith.English), html.EscapeString(colTitle), hadith.HadithNumber, html.EscapeString(grade))
+	narratorHTML := ""
+	if hadith.Narrator != "" {
+		narratorHTML = fmt.Sprintf("\n\n<b>:</b> %s", html.EscapeString(hadith.Narrator))
+	}
+
+	return fmt.Sprintf("🵿 <b>Hadith</b>\n\n%s%s\n\n%s\n\n<b>Ref:</b> %s, #%d\n<b>Grade:</b> %s",
+		html.EscapeString(hadith.Arabic), narratorHTML, html.EscapeString(hadith.English), html.EscapeString(colTitle), hadith.HadithNumber, html.EscapeString(grade))
 }
 
 func (h *Handler) findCollectionForHadith(hadith models.Hadith) string {
