@@ -120,11 +120,11 @@ func (h *Handler) handleSearch(m *tgbotapi.Message) {
 		h.sendMessage(m.Chat.ID, "No results found.")
 		return
 	}
-	h.sendSearchResults(m.Chat.ID, 0, args, results)
+	h.sendSearchResults(m.Chat.ID, 0, "", args, results)
 }
 
 func (h *Handler) handleCollections(m *tgbotapi.Message) {
-	h.sendCollectionsMenu(m.Chat.ID, 0, h.hadithService.GetCollections(), 1)
+	h.sendCollectionsMenu(m.Chat.ID, 0, "", h.hadithService.GetCollections(), 1)
 }
 
 // --- CALLBACK HANDLER ---
@@ -136,23 +136,28 @@ func (h *Handler) handleCallback(c *tgbotapi.CallbackQuery) {
 	}
 
 	parts := strings.Split(c.Data, ":")
-	chatID := c.Message.Chat.ID
-	msgID := c.Message.MessageID
+	var chatID int64
+	var msgID int
+	if c.Message != nil {
+		chatID = c.Message.Chat.ID
+		msgID = c.Message.MessageID
+	}
+	iMID := c.InlineMessageID
 
 	switch parts[0] {
 	case "collections":
 		page, _ := strconv.Atoi(parts[1])
-		h.sendCollectionsMenu(chatID, msgID, h.hadithService.GetCollections(), page)
+		h.sendCollectionsMenu(chatID, msgID, iMID, h.hadithService.GetCollections(), page)
 	case "books":
 		colName := parts[1]
 		page, _ := strconv.Atoi(parts[2])
-		h.sendBooksMenu(chatID, msgID, colName, h.hadithService.GetBooks(colName), page)
+		h.sendBooksMenu(chatID, msgID, iMID, colName, h.hadithService.GetBooks(colName), page)
 	case "hadiths":
 		colName := parts[1]
 		bookNum, _ := strconv.Atoi(parts[2])
 		page, _ := strconv.Atoi(parts[3])
 		res := h.hadithService.GetHadiths(colName, bookNum, page, 10)
-		h.sendHadithsMenu(chatID, msgID, colName, bookNum, res)
+		h.sendHadithsMenu(chatID, msgID, iMID, colName, bookNum, res)
 	case "hadith_detail":
 		h.handleHadithDetailCallback(c, parts)
 	case "hadith_search":
@@ -163,7 +168,7 @@ func (h *Handler) handleCallback(c *tgbotapi.CallbackQuery) {
 		query := parts[1]
 		page, _ := strconv.Atoi(parts[2])
 		res := h.hadithService.SearchHadiths(query, page, 5)
-		h.sendSearchResults(chatID, msgID, query, res)
+		h.sendSearchResults(chatID, msgID, iMID, query, res)
 	case "help":
 		h.sendMessage(chatID, "Use /help for commands.")
 	}
@@ -176,6 +181,20 @@ func (h *Handler) handleCallback(c *tgbotapi.CallbackQuery) {
 func (h *Handler) handleInlineQuery(q *tgbotapi.InlineQuery) {
 	query := strings.TrimSpace(q.Query)
 	var results []interface{}
+
+	if query == "" || query == "collections" {
+		text := "📚 *Browse Hadith Collections*\nSelect a collection to view its books and hadiths."
+		article := tgbotapi.NewInlineQueryResultArticleMarkdown(q.ID+"_browse", "📚 Browse Collections", text)
+		article.Description = "View Bukhari, Muslim, and other major collections"
+		kb := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("📚 Open Collections", "collections:1"),
+				tgbotapi.NewInlineKeyboardButtonData("🎲 Random Hadith", "random"),
+			),
+		)
+		article.ReplyMarkup = &kb
+		results = append(results, article)
+	}
 
 	if query == "random" {
 		res := h.hadithService.GetRandomHadith()
@@ -211,7 +230,7 @@ func (h *Handler) handleInlineQuery(q *tgbotapi.InlineQuery) {
 
 // --- NAVIGATION MENUS ---
 
-func (h *Handler) sendCollectionsMenu(chatID int64, msgID int, collections []models.Collection, page int) {
+func (h *Handler) sendCollectionsMenu(chatID int64, msgID int, inlineMsgID string, collections []models.Collection, page int) {
 	const perPage = 6
 	start, end := (page-1)*perPage, page*perPage
 	if end > len(collections) {
@@ -234,10 +253,10 @@ func (h *Handler) sendCollectionsMenu(chatID int64, msgID int, collections []mod
 		rows = append(rows, nav)
 	}
 
-	h.editOrSendMessage(chatID, msgID, "📚 *Select a Collection:*", tgbotapi.NewInlineKeyboardMarkup(rows...))
+	h.editOrSendMessage(chatID, msgID, inlineMsgID, "📚 *Select a Collection:*", tgbotapi.NewInlineKeyboardMarkup(rows...))
 }
 
-func (h *Handler) sendBooksMenu(chatID int64, msgID int, col string, books []models.Book, page int) {
+func (h *Handler) sendBooksMenu(chatID int64, msgID int, inlineMsgID string, col string, books []models.Book, page int) {
 	const perPage = 10
 	start, end := (page-1)*perPage, page*perPage
 	if end > len(books) {
@@ -261,10 +280,10 @@ func (h *Handler) sendBooksMenu(chatID int64, msgID int, col string, books []mod
 	}
 
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("⬅️ Back to Collections", "collections:1")))
-	h.editOrSendMessage(chatID, msgID, fmt.Sprintf("📚 *%s - Books:*", services.GetCollectionDisplayName(col)), tgbotapi.NewInlineKeyboardMarkup(rows...))
+	h.editOrSendMessage(chatID, msgID, inlineMsgID, fmt.Sprintf("📚 *%s - Books:*", services.GetCollectionDisplayName(col)), tgbotapi.NewInlineKeyboardMarkup(rows...))
 }
 
-func (h *Handler) sendHadithsMenu(chatID int64, msgID int, col string, bookNum int, result models.HadithResponse) {
+func (h *Handler) sendHadithsMenu(chatID int64, msgID int, inlineMsgID string, col string, bookNum int, result models.HadithResponse) {
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for i, hadith := range result.Hadiths {
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("🵿 Hadith #%d", hadith.HadithNumber), fmt.Sprintf("hadith_detail:%s:%d:%d:%d", col, bookNum, result.Page, i))))
@@ -282,7 +301,7 @@ func (h *Handler) sendHadithsMenu(chatID int64, msgID int, col string, bookNum i
 	}
 
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("⬅️ Back to Books", fmt.Sprintf("books:%s:1", col))))
-	h.editOrSendMessage(chatID, msgID, fmt.Sprintf("📑 *Page %d/%d*", result.Page, result.TotalPages), tgbotapi.NewInlineKeyboardMarkup(rows...))
+	h.editOrSendMessage(chatID, msgID, inlineMsgID, fmt.Sprintf("📑 *Page %d/%d*", result.Page, result.TotalPages), tgbotapi.NewInlineKeyboardMarkup(rows...))
 }
 
 func (h *Handler) handleHadithDetailCallback(c *tgbotapi.CallbackQuery, parts []string) {
@@ -296,7 +315,14 @@ func (h *Handler) handleHadithDetailCallback(c *tgbotapi.CallbackQuery, parts []
 		hadith := res.Hadiths[index]
 		txt := h.formatHadithDisplay(&hadith, h.hadithService.GetCollection(col), h.hadithService.GetBook(col, bookNum))
 		kb := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("⬅️ Back", fmt.Sprintf("hadiths:%s:%d:%d", col, bookNum, page))))
-		h.editOrSendMessage(c.Message.Chat.ID, c.Message.MessageID, txt, kb)
+
+		chatID := int64(0)
+		msgID := 0
+		if c.Message != nil {
+			chatID = c.Message.Chat.ID
+			msgID = c.Message.MessageID
+		}
+		h.editOrSendMessage(chatID, msgID, c.InlineMessageID, txt, kb)
 	}
 }
 
@@ -314,7 +340,14 @@ func (h *Handler) handleHadithSearchCallback(c *tgbotapi.CallbackQuery, parts []
 					tgbotapi.NewInlineKeyboardButtonData("🔍 New Search", "search"),
 					tgbotapi.NewInlineKeyboardButtonData("🎲 Random", "random"),
 				))
-				h.editOrSendMessage(c.Message.Chat.ID, c.Message.MessageID, txt, kb)
+
+				chatID := int64(0)
+				msgID := 0
+				if c.Message != nil {
+					chatID = c.Message.Chat.ID
+					msgID = c.Message.MessageID
+				}
+				h.editOrSendMessage(chatID, msgID, c.InlineMessageID, txt, kb)
 				return
 			}
 		}
@@ -326,14 +359,31 @@ func (h *Handler) handleRandomCallback(c *tgbotapi.CallbackQuery) {
 	if res.Hadith != nil {
 		txt := h.formatHadithDisplay(res.Hadith, res.Collection, res.Book)
 		kb := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🎲 Another Random", "random")))
-		h.editOrSendMessage(c.Message.Chat.ID, c.Message.MessageID, txt, kb)
+
+		chatID := int64(0)
+		msgID := 0
+		if c.Message != nil {
+			chatID = c.Message.Chat.ID
+			msgID = c.Message.MessageID
+		}
+		h.editOrSendMessage(chatID, msgID, c.InlineMessageID, txt, kb)
 	}
 }
 
 // --- FORMATTING & UTILS ---
 
-func (h *Handler) editOrSendMessage(chatID int64, msgID int, text string, kb tgbotapi.InlineKeyboardMarkup) {
-	if msgID != 0 {
+func (h *Handler) editOrSendMessage(chatID int64, msgID int, inlineMsgID string, text string, kb tgbotapi.InlineKeyboardMarkup) {
+	if inlineMsgID != "" {
+		edit := tgbotapi.EditMessageTextConfig{
+			BaseEdit: tgbotapi.BaseEdit{
+				InlineMessageID: inlineMsgID,
+				ReplyMarkup:     &kb,
+			},
+			Text:      text,
+			ParseMode: tgbotapi.ModeMarkdown,
+		}
+		h.bot.Send(edit)
+	} else if msgID != 0 {
 		edit := tgbotapi.NewEditMessageText(chatID, msgID, text)
 		edit.ParseMode = tgbotapi.ModeMarkdown
 		edit.ReplyMarkup = &kb
@@ -359,7 +409,7 @@ func (h *Handler) sendMessageWithKeyboard(chatID int64, text string, kb tgbotapi
 	h.bot.Send(msg)
 }
 
-func (h *Handler) sendSearchResults(chatID int64, msgID int, query string, res models.SearchResult) {
+func (h *Handler) sendSearchResults(chatID int64, msgID int, inlineMsgID string, query string, res models.SearchResult) {
 	var rows [][]tgbotapi.InlineKeyboardButton
 	for _, hd := range res.Hadiths {
 		col := h.findCollectionForHadith(hd)
@@ -377,7 +427,7 @@ func (h *Handler) sendSearchResults(chatID int64, msgID int, query string, res m
 		rows = append(rows, nav)
 	}
 
-	h.editOrSendMessage(chatID, msgID, fmt.Sprintf("🔍 *Results for:* %s", query), tgbotapi.NewInlineKeyboardMarkup(rows...))
+	h.editOrSendMessage(chatID, msgID, inlineMsgID, fmt.Sprintf("🔍 *Results for:* %s", query), tgbotapi.NewInlineKeyboardMarkup(rows...))
 }
 
 func (h *Handler) formatHadithDisplay(hdt *models.Hadith, col *models.Collection, b *models.Book) string {
