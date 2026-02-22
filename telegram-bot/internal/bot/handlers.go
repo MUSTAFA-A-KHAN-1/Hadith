@@ -658,11 +658,11 @@ func (h *Handler) formatHadithDisplay(hdt *models.Hadith, col *models.Collection
 
 	narrator := ""
 	if hdt.Narrator != "" {
-		narrator = fmt.Sprintf("\n*:* %s\n", hdt.Narrator)
+		narrator = fmt.Sprintf("\n*:* %s\n", escapeMarkdown(hdt.Narrator))
 	}
 
 	return fmt.Sprintf("🵿 *Hadith*\n\n%s%s\n\n%s\n\n*Reference:* %s, Book %d, #%d\n*Grade:* %s",
-		hdt.Arabic, narrator, hdt.English, colTitle, bookNum, hdt.HadithNumber, grade)
+		escapeMarkdown(hdt.Arabic), narrator, escapeMarkdown(hdt.English), escapeMarkdown(colTitle), bookNum, hdt.HadithNumber, escapeMarkdown(grade))
 }
 
 func (h *Handler) formatHadithForInlineHTML(hadith *models.Hadith, collection *models.Collection, book *models.Book) string {
@@ -751,4 +751,15 @@ func splitTelegramMessage(text string, maxRunes int) []string {
 	}
 
 	return chunks
+}
+
+func escapeMarkdown(text string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\",
+		"_", "\\_",
+		"*", "\\*",
+		"[", "\\[",
+		"`", "\\`",
+	)
+	return replacer.Replace(text)
 }
