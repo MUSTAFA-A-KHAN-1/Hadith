@@ -137,3 +137,33 @@ func GetCollectionDisplayName(collection string) string {
 	}
 	return collection
 }
+
+// FindHadithByNumber looks for a specific hadith by its number within a collection
+func (s *HadithService) FindHadithByNumber(collectionName string, hadithNum int) (*models.Hadith, *models.Book) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// 1. Get all hadiths for this collection
+	hadiths, ok := s.data.Hadiths[collectionName]
+	if !ok {
+		return nil, nil
+	}
+
+	// 2. Find the specific hadith
+	var foundHadith *models.Hadith
+	for i := range hadiths {
+		if hadiths[i].HadithNumber == hadithNum {
+			foundHadith = &hadiths[i]
+			break
+		}
+	}
+
+	if foundHadith == nil {
+		return nil, nil
+	}
+
+	// 3. Find the associated book for context
+	book := s.data.GetBook(collectionName, foundHadith.ChapterID)
+
+	return foundHadith, book
+}
