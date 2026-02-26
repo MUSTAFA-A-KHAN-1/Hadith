@@ -65,7 +65,24 @@ func (g *Generator) GenerateHadithImage(title, narrator, arabicText, englishText
 	if err := measureDC.LoadFontFace(arabicFontPath, 70); err != nil {
 		return nil, fmt.Errorf("failed to load arabic font: %w", err)
 	}
-	shapedArabic := garabic.Shape(arabicText)
+
+	// Sanitize Arabic text to prevent panics in garabic
+	safeArabicText := strings.TrimSpace(arabicText)
+	if safeArabicText == "" {
+		safeArabicText = " "
+	}
+
+	// Recover from potential panics in external library
+	var shapedArabic string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				shapedArabic = safeArabicText // Fallback to raw text
+			}
+		}()
+		shapedArabic = garabic.Shape(safeArabicText)
+	}()
+
 	arabicLines := measureDC.WordWrap(shapedArabic, maxWidth)
 	arabicLineHeight := measureDC.FontHeight() * 1.5
 	arabicTotalHeight := float64(len(arabicLines)) * arabicLineHeight
