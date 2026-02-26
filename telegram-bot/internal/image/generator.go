@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/abdullahdiaa/garabic"
 	"github.com/fogleman/gg"
@@ -55,9 +54,7 @@ func (g *Generator) GenerateHadithImage(title, narrator, arabicText, englishText
 	if err := measureDC.LoadFontFace(englishFontPath, 50); err != nil {
 		return nil, fmt.Errorf("failed to load attribution font: %w", err)
 	}
-	// Simplified measurement: max font height (assuming single line for now, or minimal wrapping)
-	// If the narrator name is extremely long, we might need wrapping, but let's assume single line or minimal.
-	// Actually, let's wrap just in case.
+
 	maxWidth := float64(W) - 160
 	attributionLines := measureDC.WordWrap(displayText, maxWidth)
 	attributionHeight := float64(len(attributionLines)) * measureDC.FontHeight() * 1.2
@@ -67,26 +64,33 @@ func (g *Generator) GenerateHadithImage(title, narrator, arabicText, englishText
 		return nil, fmt.Errorf("failed to load arabic font: %w", err)
 	}
 
-	// Sanitize Arabic text to prevent panics in garabic
+	// Sanitize Arabic text
 	safeArabicText := strings.TrimSpace(arabicText)
 	if safeArabicText == "" {
 		safeArabicText = " "
 	}
 
-	// Recover from potential panics in external library
-	var shapedArabic string
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				shapedArabic = safeArabicText // Fallback to raw text
-			}
-		}()
-		shapedArabic = garabic.Shape(safeArabicText)
-	}()
+	// Wrap Logical Text first to preserve sentence order (Top-to-Bottom)
+	logicalArabicLines := measureDC.WordWrap(safeArabicText, maxWidth)
 
-	arabicLines := measureDC.WordWrap(shapedArabic, maxWidth)
+	// Shape each line (Logical -> Visual)
+	var shapedArabicLines []string
+	for _, line := range logicalArabicLines {
+		var shaped string
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					shaped = line // Fallback to logical text (better than crash)
+				}
+			}()
+			// garabic.Shape returns Visual Order (Right-to-Left characters reversed for LTR display)
+			shaped = garabic.Shape(line)
+		}()
+		shapedArabicLines = append(shapedArabicLines, shaped)
+	}
+
 	arabicLineHeight := measureDC.FontHeight() * 1.5
-	arabicTotalHeight := float64(len(arabicLines)) * arabicLineHeight
+	arabicTotalHeight := float64(len(shapedArabicLines)) * arabicLineHeight
 
 	// English Height
 	if err := measureDC.LoadFontFace(englishFontPath, 60); err != nil {
@@ -103,17 +107,13 @@ func (g *Generator) GenerateHadithImage(title, narrator, arabicText, englishText
 	refHeight := measureDC.FontHeight()
 
 	// Padding & Spacing
-	// paddingTop := 150.0 // Unused
 	gap1 := 80.0 // Title to attribution
 	gap2 := 100.0 // Attribution to Arabic
 	gap3 := 80.0 // Arabic to English
 	gap4 := 100.0 // English to Reference
 	paddingBottom := 100.0
 
-	// Total required height calculation
-	// We anchor Title at Y=150. So top used space is roughly 150 + titleHeight/2.
-	// Let's flow from top instead of anchoring.
-
+	// Flow calculation
 	currentY := 100.0 // Top margin
 
 	titleY := currentY + titleHeight/2
@@ -144,43 +144,55 @@ func (g *Generator) GenerateHadithImage(title, narrator, arabicText, englishText
 
 	// Draw Attribution
 	dc.SetHexColor("#1a1a1a")
-	// For simplicity in dynamic layout with mixed fonts, we center the whole block at attributionY.
-	// If it wraps, DrawStringAnchored handles it for single font, but we have mixed font complexity.
-	// Let's simplify mixed font handling: If it contains symbol, render segments.
-	// Limitation: Mixed font + Wrapping is hard.
-	// For now, we assume Attribution fits in one or two lines and center it.
-
 	if strings.Contains(displayText, "ﷺ") {
-		// Centered single line approach for mixed font
-		parts := strings.Split(displayText, "ﷺ")
-		totalW := 0.0
-		for i, part := range parts {
-			dc.LoadFontFace(englishFontPath, 50)
-			w, _ := dc.MeasureString(part)
-			totalW += w
-			if i < len(parts)-1 {
-				dc.LoadFontFace(arabicFontPath, 50)
-				w, _ = dc.MeasureString("ﷺ")
-				totalW += w
+		// Centered single line approach for mixed font (simplified)
+		// We use the first line of attributionLines if wrapping happened, but mixed font wrapping is complex.
+		// Fallback: Just draw the first line or try to draw full string centered if short.
+		// Given constraints, we'll iterate wrapped lines but only support symbol in them if they fit logic.
+		// Simplification: Iterate attributionLines (which are English font wrapped).
+		// If a line has the placeholder, we split and draw.
+
+		currentAttrY := attributionY - (attributionHeight/2) + (measureDC.FontHeight()*1.2/2)
+		for _, line := range attributionLines {
+			if strings.Contains(line, "ﷺ") {
+				parts := strings.Split(line, "ﷺ")
+				totalW := 0.0
+
+				// Measure total width first
+				for i, part := range parts {
+					dc.LoadFontFace(englishFontPath, 50)
+					w, _ := dc.MeasureString(part)
+					totalW += w
+					if i < len(parts)-1 {
+						dc.LoadFontFace(arabicFontPath, 50)
+						w, _ = dc.MeasureString("ﷺ")
+						totalW += w
+					}
+				}
+
+				startX := (float64(W) - totalW) / 2
+				curX := startX
+
+				for i, part := range parts {
+					dc.LoadFontFace(englishFontPath, 50)
+					dc.DrawStringAnchored(part, curX, currentAttrY, 0, 0.5)
+					w, _ := dc.MeasureString(part)
+					curX += w
+					if i < len(parts)-1 {
+						dc.LoadFontFace(arabicFontPath, 50)
+						dc.DrawStringAnchored("ﷺ", curX, currentAttrY, 0, 0.5)
+						w, _ = dc.MeasureString("ﷺ")
+						curX += w
+					}
+				}
+			} else {
+				dc.LoadFontFace(englishFontPath, 50)
+				dc.DrawStringAnchored(line, float64(W)/2, currentAttrY, 0.5, 0.5)
 			}
-		}
-		startX := (float64(W) - totalW) / 2
-		curX := startX
-		for i, part := range parts {
-			dc.LoadFontFace(englishFontPath, 50)
-			dc.DrawStringAnchored(part, curX, attributionY, 0, 0.5)
-			w, _ := dc.MeasureString(part)
-			curX += w
-			if i < len(parts)-1 {
-				dc.LoadFontFace(arabicFontPath, 50)
-				dc.DrawStringAnchored("ﷺ", curX, attributionY, 0, 0.5)
-				w, _ = dc.MeasureString("ﷺ")
-				curX += w
-			}
+			currentAttrY += measureDC.FontHeight() * 1.2
 		}
 	} else {
 		dc.LoadFontFace(englishFontPath, 50)
-		// Handle wrapping if needed
 		for i, line := range attributionLines {
 			offsetY := float64(i)*measureDC.FontHeight()*1.2 - (attributionHeight/2) + (measureDC.FontHeight()*1.2/2)
 			dc.DrawStringAnchored(line, float64(W)/2, attributionY+offsetY, 0.5, 0.5)
@@ -190,10 +202,13 @@ func (g *Generator) GenerateHadithImage(title, narrator, arabicText, englishText
 	// Draw Arabic
 	dc.SetHexColor("#000000")
 	dc.LoadFontFace(arabicFontPath, 70)
-	for i, line := range arabicLines {
-		reversedLine := g.reversePreservingCombiningMarks(line)
+	for i, line := range shapedArabicLines {
+		// line is already shaped and in Visual Order.
+		// gg draws LTR. Visual Order is designed for LTR.
+		// So we just draw it.
+
 		offsetY := float64(i)*arabicLineHeight - (arabicTotalHeight/2) + (arabicLineHeight/2)
-		dc.DrawStringAnchored(reversedLine, float64(W)/2, arabicStartY+offsetY, 0.5, 0.5)
+		dc.DrawStringAnchored(line, float64(W)/2, arabicStartY+offsetY, 0.5, 0.5)
 	}
 
 	// Draw English
@@ -227,7 +242,6 @@ func (g *Generator) drawBackground(dc *gg.Context) {
 	height := dc.Height()
 
 	// Faint blobs
-	// Scale number of blobs by height ratio
 	numBlobs := int(5 * (float64(height) / 1080.0))
 	if numBlobs < 5 { numBlobs = 5 }
 
@@ -248,32 +262,4 @@ func (g *Generator) drawBackground(dc *gg.Context) {
 
 func (g *Generator) getFontPath(fontName string) string {
 	return filepath.Join(g.fontDir, fontName)
-}
-
-func (g *Generator) reversePreservingCombiningMarks(s string) string {
-	runes := []rune(s)
-	var clusters [][]rune
-
-	for i := 0; i < len(runes); i++ {
-		r := runes[i]
-		// Check if r is a combining mark using Unicode properties
-		// unicode.IsMark covers Mn (Nonspacing), Mc (Spacing Combining), Me (Enclosing)
-		if unicode.IsMark(r) && len(clusters) > 0 {
-			clusters[len(clusters)-1] = append(clusters[len(clusters)-1], r)
-		} else {
-			clusters = append(clusters, []rune{r})
-		}
-	}
-
-	// Reverse clusters
-	for i, j := 0, len(clusters)-1; i < j; i, j = i+1, j-1 {
-		clusters[i], clusters[j] = clusters[j], clusters[i]
-	}
-
-	// Flatten
-	var res []rune
-	for _, cluster := range clusters {
-		res = append(res, cluster...)
-	}
-	return string(res)
 }
