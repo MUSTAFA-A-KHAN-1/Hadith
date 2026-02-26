@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/abdullahdiaa/garabic"
 	"github.com/fogleman/gg"
@@ -255,30 +256,24 @@ func (g *Generator) reversePreservingCombiningMarks(s string) string {
 
 	for i := 0; i < len(runes); i++ {
 		r := runes[i]
-		if isCombiningMark(r) && len(clusters) > 0 {
+		// Check if r is a combining mark using Unicode properties
+		// unicode.IsMark covers Mn (Nonspacing), Mc (Spacing Combining), Me (Enclosing)
+		if unicode.IsMark(r) && len(clusters) > 0 {
 			clusters[len(clusters)-1] = append(clusters[len(clusters)-1], r)
 		} else {
 			clusters = append(clusters, []rune{r})
 		}
 	}
 
+	// Reverse clusters
 	for i, j := 0, len(clusters)-1; i < j; i, j = i+1, j-1 {
 		clusters[i], clusters[j] = clusters[j], clusters[i]
 	}
 
+	// Flatten
 	var res []rune
 	for _, cluster := range clusters {
 		res = append(res, cluster...)
 	}
 	return string(res)
-}
-
-func isCombiningMark(r rune) bool {
-	return (r >= 0x064B && r <= 0x065F) ||
-		r == 0x0670 ||
-		(r >= 0x0610 && r <= 0x061A) ||
-		(r >= 0x06D6 && r <= 0x06DC) ||
-		(r >= 0x06DF && r <= 0x06E4) ||
-		(r >= 0x06E7 && r <= 0x06E8) ||
-		(r >= 0x06EA && r <= 0x06ED)
 }
