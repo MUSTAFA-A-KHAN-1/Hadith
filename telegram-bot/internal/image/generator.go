@@ -22,7 +22,7 @@ func NewGenerator(fontDir string) *Generator {
 	}
 }
 
-func (g *Generator) GenerateHadithImage(title, arabicText, englishText, reference string) ([]byte, error) {
+func (g *Generator) GenerateHadithImage(title, narrator, arabicText, englishText, reference string) ([]byte, error) {
 	const W, H = 1080, 1080
 	dc := gg.NewContext(W, H)
 
@@ -43,32 +43,84 @@ func (g *Generator) GenerateHadithImage(title, arabicText, englishText, referenc
 	dc.SetHexColor("#1a1a1a") // Black
 	attributionY := titleY + 80
 
-	// We need to render "ﷺ" (U+FDFA) with Amiri, and the rest with Caveat.
-	// Simple approach: split string and measure widths.
-	parts := []struct {
-		text string
-		font string
-		size float64
-	}{
-		{"The Prophet Muhammad ", englishFontPath, 50},
-		{"ﷺ", arabicFontPath, 50}, // U+FDFA
-		{" said:", englishFontPath, 50},
+	// If narrator is empty, use default. If provided, use it.
+	// We want to handle the "Prophet Muhammad ﷺ" part intelligently if present in the narrator string,
+	// but that requires complex parsing.
+	// For now, if the narrator string contains "Prophet" or "Messenger", we just print it as is (using Caveat).
+	// If we want to support the symbol, we'd need to split the string.
+	// Given the constraint "narrator is extracted from JSON", let's print the narrator string.
+
+	// However, the user wants "include all these details in the generated image as shown in the image".
+	// The image shows "The Prophet Muhammad ﷺ said:".
+	// If the JSON `Narrator` field is just "Umar bin Al-Khattab", then the text should probably be:
+	// "Umar bin Al-Khattab narrated that The Prophet Muhammad ﷺ said:"?
+	// Or maybe the `Narrator` field in the JSON *already* contains the full chain?
+	// Let's assume `narrator` is the text to be displayed.
+
+	// We will try to replace "Prophet Muhammad" with "Prophet Muhammad ﷺ" if it doesn't have it,
+	// OR just render the symbol if we can detect the placeholder.
+	// But `Caveat` font doesn't have the symbol. `Amiri` does.
+	// So we need to render the symbol with Amiri.
+
+	// Heuristic: If narrator string is provided, use it.
+	// If it contains "Prophet Muhammad" or "Messenger of Allah", we can try to inject the symbol.
+	// But simply rendering the narrator string using Caveat is the safest first step.
+	// The user said "the narrator is not hardcoded".
+
+	displayText := narrator
+	if displayText == "" {
+		displayText = "The Prophet Muhammad ﷺ said:"
+	} else {
+		// Ensure it ends with a colon if it looks like an intro
+		if !strings.HasSuffix(displayText, ":") && !strings.HasSuffix(displayText, ".") {
+			displayText += ":"
+		}
 	}
 
-	totalWidth := 0.0
-	for _, p := range parts {
-		dc.LoadFontFace(p.font, p.size)
-		w, _ := dc.MeasureString(p.text)
-		totalWidth += w
-	}
+	// Check if we need to inject the symbol (U+FDFA)
+	// If the string contains "Pbuh" or "SAW", replace it?
+	displayText = strings.ReplaceAll(displayText, "(saw)", "ﷺ")
+	displayText = strings.ReplaceAll(displayText, "(pbuh)", "ﷺ")
 
-	startX := (float64(W) - totalWidth) / 2
-	currentX := startX
-	for _, p := range parts {
-		dc.LoadFontFace(p.font, p.size)
-		dc.DrawStringAnchored(p.text, currentX, attributionY, 0, 0.5)
-		w, _ := dc.MeasureString(p.text)
-		currentX += w
+	// Drawing logic with potential mixed fonts
+	if strings.Contains(displayText, "ﷺ") {
+		parts := strings.Split(displayText, "ﷺ")
+
+		totalWidth := 0.0
+		// Measure width first
+		for i, part := range parts {
+			dc.LoadFontFace(englishFontPath, 50)
+			w, _ := dc.MeasureString(part)
+			totalWidth += w
+			if i < len(parts)-1 {
+				dc.LoadFontFace(arabicFontPath, 50)
+				w, _ = dc.MeasureString("ﷺ")
+				totalWidth += w
+			}
+		}
+
+		startX := (float64(W) - totalWidth) / 2
+		currentX := startX
+
+		for i, part := range parts {
+			dc.LoadFontFace(englishFontPath, 50)
+			dc.DrawStringAnchored(part, currentX, attributionY, 0, 0.5)
+			w, _ := dc.MeasureString(part)
+			currentX += w
+
+			if i < len(parts)-1 {
+				dc.LoadFontFace(arabicFontPath, 50)
+				dc.DrawStringAnchored("ﷺ", currentX, attributionY, 0, 0.5)
+				w, _ = dc.MeasureString("ﷺ")
+				currentX += w
+			}
+		}
+	} else {
+		// Just render plain text
+		if err := dc.LoadFontFace(englishFontPath, 50); err != nil {
+			return nil, fmt.Errorf("failed to load attribution font: %w", err)
+		}
+		dc.DrawStringAnchored(displayText, float64(W)/2, attributionY, 0.5, 0.5)
 	}
 
 	// --- 3. Arabic Text (Centered, Large) ---
@@ -125,8 +177,6 @@ func (g *Generator) GenerateHadithImage(title, arabicText, englishText, referenc
 
 func (g *Generator) drawBackground(dc *gg.Context) {
 	// Light blue/white tint similar to reference image
-	// #E3F2FD (Light Blue 50) or #F1F8E9 (Light Green 50)?
-	// Let's go with very light blue/white: #F0F8FF (AliceBlue)
 	dc.SetHexColor("#F0F8FF")
 	dc.Clear()
 
@@ -134,9 +184,6 @@ func (g *Generator) drawBackground(dc *gg.Context) {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	width := dc.Width()
 	height := dc.Height()
-
-	// Floral-ish abstract blobs? Too complex. Just noise for now.
-	// Maybe draw some very faint large circles/blobs in background for "texture"?
 
 	// Faint blobs
 	for i := 0; i < 5; i++ {

@@ -654,7 +654,7 @@ func (h *Handler) handleHadithImageCallback(c *tgbotapi.CallbackQuery, parts []s
 
 	ref := fmt.Sprintf("[%s: %d]", services.GetCollectionDisplayName(col), hadith.HadithNumber)
 
-	imgBytes, err := h.imageGenerator.GenerateHadithImage(title, hadith.Arabic, hadith.English, ref)
+	imgBytes, err := h.imageGenerator.GenerateHadithImage(title, hadith.Narrator, hadith.Arabic, hadith.English, ref)
 	if err != nil {
 		h.log.Error("Failed to generate image: %v", err)
 		h.sendMessage(c.Message.Chat.ID, "⚠️ Failed to generate image.")
