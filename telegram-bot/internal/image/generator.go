@@ -111,10 +111,10 @@ type templateData struct {
 	EnglishText     template.HTML
 	Reference       string
 	UseCustomBg     bool
-	EnglishFontData string
-	ArabicFontData  string
-	AmiriFontData   string
-	BgImageData     string
+	EnglishFontData template.URL
+	ArabicFontData  template.URL
+	AmiriFontData   template.URL
+	BgImageData     template.URL
 }
 
 func processTextWithSawSymbol(text string) template.HTML {
@@ -156,10 +156,10 @@ func (g *Generator) GenerateHadithImage(title, narrator, arabicText, englishText
 		EnglishText:     processTextWithSawSymbol(englishText),
 		Reference:       reference,
 		UseCustomBg:     useCustomBg,
-		EnglishFontData: g.englishFontData,
-		ArabicFontData:  arabicFontData,
-		AmiriFontData:   g.amiriFontData,
-		BgImageData:     bgData,
+		EnglishFontData: template.URL(g.englishFontData),
+		ArabicFontData:  template.URL(arabicFontData),
+		AmiriFontData:   template.URL(g.amiriFontData),
+		BgImageData:     template.URL(bgData),
 	}
 
 	// 2. Render HTML
