@@ -92,6 +92,7 @@ func main() {
 		imageGenerator,
 		stateManager,
 		cfg.ImageCacheChannelID,
+		cfg.AdminUserID,
 	)
 
 	log.Info("Bot is ready to handle commands")

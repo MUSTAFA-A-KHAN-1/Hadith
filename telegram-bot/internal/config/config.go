@@ -29,6 +29,9 @@ type Config struct {
 
 	// Image Cache Channel
 	ImageCacheChannelID int64
+
+	// Admin
+	AdminUserID int64
 }
 
 // Load loads configuration from environment variables
@@ -36,6 +39,7 @@ func Load() *Config {
 	return &Config{
 		BotToken:            getEnv("TELEGRAM_BOT_TOKEN", ""),
 		ImageCacheChannelID: int64(getEnvInt("IMAGE_CACHE_CHANNEL_ID", 0)),
+		AdminUserID:         int64(getEnvInt("ADMIN_USER_ID", 0)),
 		APIURL:            getEnv("API_URL", "https://api.sunnah.com/v1"),
 		APIKey:            getEnv("API_KEY", ""),
 		APITimeout:        getEnvDuration("API_TIMEOUT", 10*time.Second),

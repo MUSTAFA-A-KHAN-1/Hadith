@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/emulation"
@@ -25,6 +26,7 @@ type Generator struct {
 	fontDir  string
 	bgDir    string
 	bgImages []string // file paths for custom backgrounds
+	bgMutex  sync.RWMutex
 	htmlTmpl *template.Template
 
 	// Cached font data
@@ -34,13 +36,6 @@ type Generator struct {
 }
 
 func NewGenerator(fontDir, bgDir string) *Generator {
-	var bgFiles []string
-	if bgDir != "" {
-		jpegFiles, _ := filepath.Glob(filepath.Join(bgDir, "*.jpeg"))
-		jpgFiles, _ := filepath.Glob(filepath.Join(bgDir, "*.jpg"))
-		bgFiles = append(jpegFiles, jpgFiles...)
-	}
-
 	tmpl, err := template.ParseFS(templateFS, "template.html")
 	if err != nil {
 		panic(fmt.Errorf("failed to load embedded HTML template: %w", err))
@@ -49,9 +44,10 @@ func NewGenerator(fontDir, bgDir string) *Generator {
 	g := &Generator{
 		fontDir:  fontDir,
 		bgDir:    bgDir,
-		bgImages: bgFiles,
 		htmlTmpl: tmpl,
 	}
+
+	g.ReloadBackgrounds()
 
 	// Pre-load and cache fonts to avoid reading and base64 encoding from disk on every generation request.
 	if data, err := g.loadFontData("Caveat-Regular.ttf"); err == nil {
@@ -75,6 +71,29 @@ func NewGenerator(fontDir, bgDir string) *Generator {
 	return g
 }
 
+func (g *Generator) GetBackgroundDir() string {
+	return g.bgDir
+}
+
+func (g *Generator) ReloadBackgrounds() error {
+	if g.bgDir == "" {
+		return nil
+	}
+
+	var bgFiles []string
+	jpegFiles, _ := filepath.Glob(filepath.Join(g.bgDir, "*.jpeg"))
+	jpgFiles, _ := filepath.Glob(filepath.Join(g.bgDir, "*.jpg"))
+	pngFiles, _ := filepath.Glob(filepath.Join(g.bgDir, "*.png"))
+
+	bgFiles = append(jpegFiles, jpgFiles...)
+	bgFiles = append(bgFiles, pngFiles...)
+
+	g.bgMutex.Lock()
+	defer g.bgMutex.Unlock()
+	g.bgImages = bgFiles
+	return nil
+}
+
 func (g *Generator) loadFontData(fontName string) (string, error) {
 	path := filepath.Join(g.fontDir, fontName)
 	data, err := os.ReadFile(path)
@@ -85,11 +104,14 @@ func (g *Generator) loadFontData(fontName string) (string, error) {
 }
 
 func (g *Generator) getRandomCustomBackgroundData() (string, error) {
+	g.bgMutex.RLock()
 	if len(g.bgImages) == 0 {
+		g.bgMutex.RUnlock()
 		return "", fmt.Errorf("no background images found")
 	}
 
 	path := g.bgImages[rand.Intn(len(g.bgImages))]
+	g.bgMutex.RUnlock()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
