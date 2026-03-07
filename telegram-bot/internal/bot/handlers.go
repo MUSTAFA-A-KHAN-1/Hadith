@@ -3,6 +3,10 @@ package bot
 import (
 	"fmt"
 	"html"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -25,9 +29,10 @@ type Handler struct {
 	imageGenerator      *image.Generator
 	state               *StateManager
 	imageCacheChannelID int64
+	adminUserID         int64
 }
 
-func NewHandler(bot *tgbotapi.BotAPI, hadithService *services.HadithService, log *logger.Logger, rateLimitRequests int, rateLimitWindow time.Duration, imageGenerator *image.Generator, state *StateManager, imageCacheChannelID int64) *Handler {
+func NewHandler(bot *tgbotapi.BotAPI, hadithService *services.HadithService, log *logger.Logger, rateLimitRequests int, rateLimitWindow time.Duration, imageGenerator *image.Generator, state *StateManager, imageCacheChannelID int64, adminUserID int64) *Handler {
 	return &Handler{
 		bot:                 bot,
 		hadithService:       hadithService,
@@ -36,6 +41,7 @@ func NewHandler(bot *tgbotapi.BotAPI, hadithService *services.HadithService, log
 		imageGenerator:      imageGenerator,
 		state:               state,
 		imageCacheChannelID: imageCacheChannelID,
+		adminUserID:         adminUserID,
 	}
 }
 
@@ -118,6 +124,13 @@ func (h *Handler) handleIncomingMessage(m *tgbotapi.Message) {
 		return
 	}
 
+	if m.Photo != nil && len(m.Photo) > 0 {
+		if strings.HasPrefix(m.Caption, "/addbg") {
+			h.handleAddBackground(m)
+			return
+		}
+	}
+
 	if m.IsCommand() {
 		switch m.Command() {
 		case "start":
@@ -136,6 +149,9 @@ func (h *Handler) handleIncomingMessage(m *tgbotapi.Message) {
 			h.handleToggleArabic(m)
 		case "schedule":
 			h.handleSchedule(m)
+		case "addbg":
+			// If they just typed /addbg without a photo
+			h.sendMessage(m.Chat.ID, "🖼️ Please send a photo and include `/addbg` in the caption to add a new background.")
 		}
 	}
 }
@@ -193,6 +209,7 @@ func (h *Handler) handleHelp(m *tgbotapi.Message) {
 • <b>/togglebackgrounds</b> — Toggle custom image backgrounds for generated images
 • <b>/togglearabic</b> — Toggle classic Arabic font for generated images
 • <b>/help</b> — Show this help message
+• <b>/addbg</b> — Add a new custom background (send a photo with '/addbg' as the caption)
 
 💡 <b>Examples</b>
 • <b>/search prayer</b>
@@ -326,6 +343,86 @@ func (h *Handler) handleToggleBackgrounds(m *tgbotapi.Message) {
 
 	text := fmt.Sprintf("✅ Custom backgrounds are now <b>%s</b> for generated images.", status)
 	h.sendMessage(m.Chat.ID, text)
+}
+
+func (h *Handler) handleAddBackground(m *tgbotapi.Message) {
+	// 1. Check permissions: if AdminUserID is set, only that user can add backgrounds
+	if h.adminUserID != 0 && m.From.ID != h.adminUserID {
+		h.sendMessage(m.Chat.ID, "⚠️ You do not have permission to add new backgrounds.")
+		return
+	}
+
+	// 2. Get the largest photo sent
+	photos := m.Photo
+	largestPhoto := photos[len(photos)-1]
+
+	// 3. Get the file URL
+	fileConfig := tgbotapi.FileConfig{FileID: largestPhoto.FileID}
+	file, err := h.bot.GetFile(fileConfig)
+	if err != nil {
+		h.log.Error("Failed to get file info from Telegram: %v", err)
+		h.sendMessage(m.Chat.ID, "⚠️ Failed to process the image. Please try again.")
+		return
+	}
+
+	downloadURL := file.Link(h.bot.Token)
+
+	// 4. Download the image
+	resp, err := http.Get(downloadURL)
+	if err != nil {
+		h.log.Error("Failed to download image from Telegram: %v", err)
+		h.sendMessage(m.Chat.ID, "⚠️ Failed to download the image. Please try again.")
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		h.log.Error("Bad status when downloading image: %s", resp.Status)
+		h.sendMessage(m.Chat.ID, "⚠️ Failed to download the image. Please try again.")
+		return
+	}
+
+	// 5. Save the image to the assets/backgrounds directory
+	bgDir := h.imageGenerator.GetBackgroundDir()
+	if bgDir == "" {
+		h.sendMessage(m.Chat.ID, "⚠️ The bot is not configured with a background directory.")
+		return
+	}
+
+	// Make sure directory exists
+	if err := os.MkdirAll(bgDir, 0755); err != nil {
+		h.log.Error("Failed to create background directory: %v", err)
+		h.sendMessage(m.Chat.ID, "⚠️ Server error when saving image.")
+		return
+	}
+
+	fileName := fmt.Sprintf("bg_%d.jpg", time.Now().UnixNano())
+	filePath := filepath.Join(bgDir, fileName)
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		h.log.Error("Failed to create file: %v", err)
+		h.sendMessage(m.Chat.ID, "⚠️ Server error when saving image.")
+		return
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		h.log.Error("Failed to save image to disk: %v", err)
+		h.sendMessage(m.Chat.ID, "⚠️ Server error when saving image.")
+		return
+	}
+
+	// 6. Reload backgrounds in the image generator
+	err = h.imageGenerator.ReloadBackgrounds()
+	if err != nil {
+		h.log.Error("Failed to reload backgrounds: %v", err)
+		h.sendMessage(m.Chat.ID, "⚠️ Image saved, but failed to reload backgrounds. The bot may need a restart.")
+		return
+	}
+
+	h.sendMessage(m.Chat.ID, "✅ Successfully added the new background!")
 }
 
 // --- CALLBACK HANDLER ---
