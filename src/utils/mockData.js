@@ -7,6 +7,7 @@ import tirmidhiData from '../data/tirmidhi.json'
 import nasaiData from '../data/nasai.json'
 import ibnmajahData from '../data/ibnmajah.json'
 import darimiData from '../data/darimi.json'
+import riyadussaliheenData from '../data/riyadussaliheen.json'
 
 // Transform hadith data from JSON files to the format used by the app
 const transformHadiths = (data, defaultGrade = 'Sahih') => {
@@ -84,6 +85,10 @@ const darimiHadiths = transformHadiths(darimiData, 'Sahih')
 const darimiBooks = transformBooks(darimiData)
 const darimiCollection = transformCollection(darimiData, 'darimi', 'Sahih')
 
+const riyadussaliheenHadiths = transformHadiths(riyadussaliheenData, 'Sahih')
+const riyadussaliheenBooks = transformBooks(riyadussaliheenData)
+const riyadussaliheenCollection = transformCollection(riyadussaliheenData, 'riyadussaliheen', 'Sahih')
+
 export const mockCollections = [
   bukhariCollection,
   muslimCollection,
@@ -92,19 +97,13 @@ export const mockCollections = [
   nasaiCollection,
   ibnmajahCollection,
   darimiCollection,
+  riyadussaliheenCollection,
   {
     name: 'muwatta',
     title: 'Muwatta Imam Malik',
     hadiths: 1900,
     books: 61,
     description: 'The earliest collection of hadith'
-  },
-  {
-    name: 'riyadussaliheen',
-    title: 'Riyad as-Salihin',
-    hadiths: 1906,
-    books: 19,
-    description: 'Gardens of the Righteous'
   },
   {
     name: 'adab',
@@ -136,7 +135,8 @@ export const mockBooks = {
   tirmidhi: tirmidhiBooks,
   nasai: nasaiBooks,
   ibnmajah: ibnmajahBooks,
-  darimi: darimiBooks
+  darimi: darimiBooks,
+  riyadussaliheen: riyadussaliheenBooks
 }
 
 export const mockHadiths = {
@@ -146,7 +146,8 @@ export const mockHadiths = {
   tirmidhi: tirmidhiHadiths,
   nasai: nasaiHadiths,
   ibnmajah: ibnmajahHadiths,
-  darimi: darimiHadiths
+  darimi: darimiHadiths,
+  riyadussaliheen: riyadussaliheenHadiths
 }
 
 // Helper function to get mock data
